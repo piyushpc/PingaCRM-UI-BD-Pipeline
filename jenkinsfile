@@ -7,8 +7,18 @@ pipeline {
         DIST_FILE = ''
         FRONTEND_SERVER = ''
         CREDENTIALS_ID = ''
-        AWS_ACCESS_KEY_ID = credentials('aws-access-key-id')
-        AWS_SECRET_ACCESS_KEY = credentials('aws-secret-access-key')
+
+        withCredentials([aws(credentialsId: 'aws-credentials-id')]) {
+    def awsAccessKeyId = env.AWS_ACCESS_KEY_ID
+    def awsSecretAccessKey = env.AWS_SECRET_ACCESS_KEY
+
+    sh """
+    export AWS_ACCESS_KEY_ID=${awsAccessKeyId}
+    export AWS_SECRET_ACCESS_KEY=${awsSecretAccessKey}
+    # Run your AWS commands here
+    """
+}
+
     }
 
     parameters {
@@ -60,17 +70,28 @@ pipeline {
             }
         }
 
-        stage('Fetch Latest Code from SVN') {
-            steps {
-                script {
-                    echo "[INFO] Fetching latest code from SVN repository."
-                    def svnUrl = "https://extsvn.pingacrm.com/svn/pingacrm-frontend-new/trunk"
-                    def svnCredentials = "${credentials('svn-credentials-id')}"
-                    sh "svn checkout --username ${svnCredentials_USR} --password ${svnCredentials_PSW} ${svnUrl} /home/ubuntu/pinga/trunk || exit 1"
-                    echo "[INFO] SVN checkout/update completed successfully."
-                }
+
+
+             stage('Fetch Latest Code from SVN') {
+    steps {
+        script {
+            echo "[INFO] Fetching latest code from SVN repository."
+            def svnUrl = "https://extsvn.pingacrm.com/svn/pingacrm-frontend-new/trunk"
+
+            // Using credentials securely
+            withCredentials([usernamePassword(credentialsId: 'svn-credentials-id', 
+                                              usernameVariable: 'SVN_USER', 
+                                              passwordVariable: 'SVN_PASS')]) {
+                sh """
+                svn checkout --username ${SVN_USER} --password ${SVN_PASS} ${svnUrl} /home/ubuntu/pinga/trunk || exit 1
+                """
             }
+
+            echo "[INFO] SVN checkout/update completed successfully."
         }
+    }
+}
+
 
         stage('Install Dependencies & Build') {
             steps {

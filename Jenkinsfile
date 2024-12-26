@@ -26,14 +26,6 @@ pipeline {
                     }
                 }
             }
-
-             stage('Debug Environment Variables') {
-    steps {
-        script {
-            sh 'env | sort'
-        }
-    }
-}
             
         }
 

@@ -14,13 +14,6 @@ pipeline {
         string(name: 'ENVIRONMENT', defaultValue: 'dev', description: 'Deployment environment: dev, uat, prod')
     }
 
-    stage('Debug Environment Variables') {
-    steps {
-        script {
-            sh 'env | sort'
-        }
-    }
-}
 
 
     stages {
@@ -33,6 +26,15 @@ pipeline {
                     }
                 }
             }
+
+             stage('Debug Environment Variables') {
+    steps {
+        script {
+            sh 'env | sort'
+        }
+    }
+}
+            
         }
 
         stage('Initialize') {

@@ -2,49 +2,12 @@ pipeline {
     agent any
 
     environment {
-	    // Define static environment variables here if needed
         AWS_DEFAULT_REGION = 'ap-south-1'
         BUILD_DATE = "${new Date().format('ddMMMyyyy')}"
         BUILD_DIR = "/home/ubuntu"
         DIST_FILE = ''
         FRONTEND_SERVER = ''
         CREDENTIALS_ID = ''
-
-    //    withCredentials([aws(credentialsId: 'aws-credentials-id')]) {
-   // def awsAccessKeyId = env.AWS_ACCESS_KEY_ID
-    //def awsSecretAccessKey = env.AWS_SECRET_ACCESS_KEY
-
-   // sh """
-   // export AWS_ACCESS_KEY_ID=${awsAccessKeyId}
- //   export AWS_SECRET_ACCESS_KEY=${awsSecretAccessKey}
- //   # Run your AWS commands here
-  //  """
-//}
-
-stages {
-        stage('Setup AWS Credentials') {
-            steps {
-                script {
-                    withCredentials([[
-                        $class: 'AmazonWebServicesCredentialsBinding',
-                        credentialsId: 'aws-credentials-id'
-                    ]]) {
-                        env.AWS_ACCESS_KEY_ID = env.AWS_ACCESS_KEY_ID
-                        env.AWS_SECRET_ACCESS_KEY = env.AWS_SECRET_ACCESS_KEY
-                    }
-                }
-            }
-        }
-        stage('Example Stage') {
-            steps {
-                sh '''
-                echo "Using AWS Credentials..."
-                aws s3 ls
-                '''
-            }
-        }
-    }
-
     }
 
     parameters {
@@ -52,6 +15,17 @@ stages {
     }
 
     stages {
+        stage('Setup AWS Credentials') {
+            steps {
+                script {
+                    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials-id']]) {
+                        env.AWS_ACCESS_KEY_ID = sh(script: 'echo $AWS_ACCESS_KEY_ID', returnStdout: true).trim()
+                        env.AWS_SECRET_ACCESS_KEY = sh(script: 'echo $AWS_SECRET_ACCESS_KEY', returnStdout: true).trim()
+                    }
+                }
+            }
+        }
+
         stage('Initialize') {
             steps {
                 script {
@@ -96,28 +70,24 @@ stages {
             }
         }
 
+        stage('Fetch Latest Code from SVN') {
+            steps {
+                script {
+                    echo "[INFO] Fetching latest code from SVN repository."
+                    def svnUrl = "https://extsvn.pingacrm.com/svn/pingacrm-frontend-new/trunk"
 
+                    withCredentials([usernamePassword(credentialsId: 'svn-credentials-id', 
+                                                      usernameVariable: 'SVN_USER', 
+                                                      passwordVariable: 'SVN_PASS')]) {
+                        sh """
+                        svn checkout --username ${SVN_USER} --password ${SVN_PASS} ${svnUrl} /home/ubuntu/pinga/trunk || exit 1
+                        """
+                    }
 
-             stage('Fetch Latest Code from SVN') {
-    steps {
-        script {
-            echo "[INFO] Fetching latest code from SVN repository."
-            def svnUrl = "https://extsvn.pingacrm.com/svn/pingacrm-frontend-new/trunk"
-
-            // Using credentials securely
-            withCredentials([usernamePassword(credentialsId: 'svn-credentials-id', 
-                                              usernameVariable: 'SVN_USER', 
-                                              passwordVariable: 'SVN_PASS')]) {
-                sh """
-                svn checkout --username ${SVN_USER} --password ${SVN_PASS} ${svnUrl} /home/ubuntu/pinga/trunk || exit 1
-                """
+                    echo "[INFO] SVN checkout/update completed successfully."
+                }
             }
-
-            echo "[INFO] SVN checkout/update completed successfully."
         }
-    }
-}
-
 
         stage('Install Dependencies & Build') {
             steps {
@@ -126,11 +96,11 @@ stages {
                     sh '''
                         rm -rf node_modules package-lock.json
                         echo "[INFO] Removed existing dependencies."
-                        npm install --legacy-peer-deps || exit 1
+                        npm ci || exit 1
                         echo "[INFO] Dependencies installed successfully."
                         npm run build || exit 1
                         echo "[INFO] Build process completed successfully."
-                        tar -czvf ${BUILD_DIR}/${DIST_FILE} dist || exit 1
+                        sudo tar -czvf ${BUILD_DIR}/${DIST_FILE} dist || exit 1
                         echo "[INFO] Build artifacts compressed into ${BUILD_DIR}/${DIST_FILE}."
                     '''
                 }
@@ -147,40 +117,38 @@ stages {
 
         stage('Deploy to Server') {
             steps {
-                sshagent([env.CREDENTIALS_ID]) {
-                    echo "[INFO] Deploying build artifact to server: ${FRONTEND_SERVER}"
-                    sh '''
-                        ssh -o StrictHostKeyChecking=no ubuntu@${FRONTEND_SERVER} << EOF
-                        echo "[INFO] Stopping Apache server."
-                        sudo service apache2 stop || exit 1
-                        echo "[INFO] Apache server stopped."
+                echo "[INFO] Deploying build artifact to server: ${FRONTEND_SERVER}"
+                sh '''
+                    sudo -u jenkins ssh -i /home/ubuntu/vkey.pem ubuntu@${FRONTEND_SERVER} << EOF
+                    echo "[INFO] Stopping Apache server."
+                    sudo service apache2 stop || exit 1
+                    echo "[INFO] Apache server stopped."
 
-                        echo "[INFO] Downloading build artifact from S3."
-                        aws s3 cp s3://pinga-builds/${DIST_FILE} . || exit 1
-                        echo "[INFO] Build artifact downloaded successfully."
+                    echo "[INFO] Downloading build artifact from S3."
+                    aws s3 cp s3://pinga-builds/${DIST_FILE} . || exit 1
+                    echo "[INFO] Build artifact downloaded successfully."
 
-                        if [ -d /var/www/html/pinga ]; then
-                            echo "[INFO] Backing up existing deployment."
-                            sudo mv /var/www/html/pinga /var/www/html/pinga-backup-${BUILD_DATE} || exit 1
-                            echo "[INFO] Backup of existing deployment completed."
-                        fi
+                    if [ -d /var/www/html/pinga ]; then
+                        echo "[INFO] Backing up existing deployment."
+                        sudo mv /var/www/html/pinga /var/www/html/pinga-backup-${BUILD_DATE} || exit 1
+                        echo "[INFO] Backup of existing deployment completed."
+                    fi
 
-                        echo "[INFO] Preparing temporary directory for deployment."
-                        mkdir -p /tmp/${ENVIRONMENT}-dist || exit 1
-                        tar -xvf ${DIST_FILE} -C /tmp/${ENVIRONMENT}-dist || exit 1
-                        echo "[INFO] Build artifact extracted successfully."
+                    echo "[INFO] Preparing temporary directory for deployment."
+                    mkdir -p /tmp/${ENVIRONMENT}-dist || exit 1
+                    tar -xvf ${DIST_FILE} -C /tmp/${ENVIRONMENT}-dist || exit 1
+                    echo "[INFO] Build artifact extracted successfully."
 
-                        echo "[INFO] Deploying new build to web server."
-                        sudo mv /tmp/${ENVIRONMENT}-dist/dist/* /var/www/html/pinga || exit 1
-                        sudo chown -R www-data:www-data /var/www/html/pinga || exit 1
-                        echo "[INFO] New build deployed successfully."
+                    echo "[INFO] Deploying new build to web server."
+                    sudo mv /tmp/${ENVIRONMENT}-dist/dist/* /var/www/html/pinga || exit 1
+                    sudo chown -R www-data:www-data /var/www/html/pinga || exit 1
+                    echo "[INFO] New build deployed successfully."
 
-                        echo "[INFO] Starting Apache server."
-                        sudo service apache2 start || exit 1
-                        echo "[INFO] Apache server started."
-                        EOF
-                    '''
-                }
+                    echo "[INFO] Starting Apache server."
+                    sudo service apache2 start || exit 1
+                    echo "[INFO] Apache server started."
+                    EOF
+                '''
             }
         }
 
@@ -189,14 +157,13 @@ stages {
                 script {
                     echo "[INFO] Verifying deployment by checking application health."
                     def testCommand = "curl --fail https://${FRONTEND_SERVER} || exit 1"
-                    sshagent([env.CREDENTIALS_ID]) {
-                        sh "ssh -o StrictHostKeyChecking=no ubuntu@${FRONTEND_SERVER} ${testCommand}"
-                        echo "[INFO] Deployment verification successful. Application is accessible."
-                    }
+                    sh '''
+                        sudo -u jenkins ssh -i /home/ubuntu/vkey.pem ubuntu@${FRONTEND_SERVER} ${testCommand}
+                    '''
+                    echo "[INFO] Deployment verification successful. Application is accessible."
                 }
             }
         }
-
     }
 
     post {
@@ -205,26 +172,23 @@ stages {
         }
         failure {
             echo "[ERROR] Pipeline failed. Initiating rollback."
-            sshagent([env.CREDENTIALS_ID]) {
-                sh '''
-                    ssh -o StrictHostKeyChecking=no ubuntu@${FRONTEND_SERVER} << EOF
-                    if [ -d /var/www/html/pinga-backup-${BUILD_DATE} ]; then
-                        echo "[INFO] Restoring previous deployment."
-                        sudo rm -rf /var/www/html/pinga || exit 1
-                        sudo mv /var/www/html/pinga-backup-${BUILD_DATE} /var/www/html/pinga || exit 1
-                        sudo chown -R www-data:www-data /var/www/html/pinga || exit 1
-                        echo "[INFO] Rollback to previous deployment completed."
+            sh '''
+                sudo -u jenkins ssh -i /home/ubuntu/vkey.pem ubuntu@${FRONTEND_SERVER} << EOF
+                if [ -d /var/www/html/pinga-backup-${BUILD_DATE} ]; then
+                    echo "[INFO] Restoring previous deployment."
+                    sudo rm -rf /var/www/html/pinga || exit 1
+                    sudo mv /var/www/html/pinga-backup-${BUILD_DATE} /var/www/html/pinga || exit 1
+                    sudo chown -R www-data:www-data /var/www/html/pinga || exit 1
+                    echo "[INFO] Rollback to previous deployment completed."
 
-                        echo "[INFO] Restarting Apache server."
-                        sudo service apache2 start || exit 1
-                        echo "[INFO] Apache server restarted."
-                    else
-                        echo "[ERROR] No backup found for rollback. Manual intervention required."; exit 1
-                    fi
-                    EOF
-                '''
-            }
+                    echo "[INFO] Restarting Apache server."
+                    sudo service apache2 start || exit 1
+                    echo "[INFO] Apache server restarted."
+                else
+                    echo "[ERROR] No backup found for rollback. Manual intervention required."; exit 1
+                fi
+                EOF
+            '''
         }
     }
 }
-

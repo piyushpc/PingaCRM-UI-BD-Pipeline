@@ -12,9 +12,9 @@ pipeline {
         NODE_OPTIONS = "--max_old_space_size=4096"
     }
 
-    parameters {
-        string(name: 'ENVIRONMENT', defaultValue: 'dev', description: 'Deployment environment: dev, uat, prod')
-    }
+   // parameters {
+     //   string(name: 'ENVIRONMENT', defaultValue: 'dev', description: 'Deployment environment: dev, uat, prod')
+   // }
 
     stages {
         stage('Setup AWS Credentials') {

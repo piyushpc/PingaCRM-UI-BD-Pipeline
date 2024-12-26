@@ -2,49 +2,13 @@ pipeline {
     agent any
 
     environment {
-	    // Define static environment variables here if needed
+        // Define static environment variables here if needed
         AWS_DEFAULT_REGION = 'ap-south-1'
         BUILD_DATE = "${new Date().format('ddMMMyyyy')}"
         BUILD_DIR = "/home/ubuntu"
         DIST_FILE = ''
         FRONTEND_SERVER = ''
         CREDENTIALS_ID = ''
-
-    //    withCredentials([aws(credentialsId: 'aws-credentials-id')]) {
-   // def awsAccessKeyId = env.AWS_ACCESS_KEY_ID
-    //def awsSecretAccessKey = env.AWS_SECRET_ACCESS_KEY
-
-   // sh """
-   // export AWS_ACCESS_KEY_ID=${awsAccessKeyId}
- //   export AWS_SECRET_ACCESS_KEY=${awsSecretAccessKey}
- //   # Run your AWS commands here
-  //  """
-//}
-
-stages {
-        stage('Setup AWS Credentials') {
-            steps {
-                script {
-                    withCredentials([[
-                        $class: 'AmazonWebServicesCredentialsBinding',
-                        credentialsId: 'aws-credentials-id'
-                    ]]) {
-                        env.AWS_ACCESS_KEY_ID = env.AWS_ACCESS_KEY_ID
-                        env.AWS_SECRET_ACCESS_KEY = env.AWS_SECRET_ACCESS_KEY
-                    }
-                }
-            }
-        }
-        stage('Example Stage') {
-            steps {
-                sh '''
-                echo "Using AWS Credentials..."
-                aws s3 ls
-                '''
-            }
-        }
-    }
-
     }
 
     parameters {
@@ -52,6 +16,17 @@ stages {
     }
 
     stages {
+        stage('Setup AWS Credentials') {
+            steps {
+                script {
+                    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials-id']]) {
+                        env.AWS_ACCESS_KEY_ID = sh(script: 'echo $AWS_ACCESS_KEY_ID', returnStdout: true).trim()
+                        env.AWS_SECRET_ACCESS_KEY = sh(script: 'echo $AWS_SECRET_ACCESS_KEY', returnStdout: true).trim()
+                    }
+                }
+            }
+        }
+
         stage('Initialize') {
             steps {
                 script {
@@ -96,28 +71,25 @@ stages {
             }
         }
 
+        stage('Fetch Latest Code from SVN') {
+            steps {
+                script {
+                    echo "[INFO] Fetching latest code from SVN repository."
+                    def svnUrl = "https://extsvn.pingacrm.com/svn/pingacrm-frontend-new/trunk"
 
+                    // Using credentials securely
+                    withCredentials([usernamePassword(credentialsId: 'svn-credentials-id', 
+                                                      usernameVariable: 'SVN_USER', 
+                                                      passwordVariable: 'SVN_PASS')]) {
+                        sh """
+                        svn checkout --username ${SVN_USER} --password ${SVN_PASS} ${svnUrl} /home/ubuntu/pinga/trunk || exit 1
+                        """
+                    }
 
-             stage('Fetch Latest Code from SVN') {
-    steps {
-        script {
-            echo "[INFO] Fetching latest code from SVN repository."
-            def svnUrl = "https://extsvn.pingacrm.com/svn/pingacrm-frontend-new/trunk"
-
-            // Using credentials securely
-            withCredentials([usernamePassword(credentialsId: 'svn-credentials-id', 
-                                              usernameVariable: 'SVN_USER', 
-                                              passwordVariable: 'SVN_PASS')]) {
-                sh """
-                svn checkout --username ${SVN_USER} --password ${SVN_PASS} ${svnUrl} /home/ubuntu/pinga/trunk || exit 1
-                """
+                    echo "[INFO] SVN checkout/update completed successfully."
+                }
             }
-
-            echo "[INFO] SVN checkout/update completed successfully."
         }
-    }
-}
-
 
         stage('Install Dependencies & Build') {
             steps {
@@ -196,7 +168,6 @@ stages {
                 }
             }
         }
-
     }
 
     post {
@@ -227,4 +198,3 @@ stages {
         }
     }
 }
-

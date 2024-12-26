@@ -14,6 +14,15 @@ pipeline {
         string(name: 'ENVIRONMENT', defaultValue: 'dev', description: 'Deployment environment: dev, uat, prod')
     }
 
+    stage('Debug Environment Variables') {
+    steps {
+        script {
+            sh 'env | sort'
+        }
+    }
+}
+
+
     stages {
         stage('Setup AWS Credentials') {
             steps {
@@ -117,6 +126,7 @@ pipeline {
 
         stage('Deploy to Server') {
             steps {
+                echo "FRONTEND_SERVER=${env.FRONTEND_SERVER}"
                 echo "[INFO] Deploying build artifact to server: ${FRONTEND_SERVER}"
                 sh '''
                     sudo -u jenkins ssh -i /home/ubuntu/vkey.pem ubuntu@${FRONTEND_SERVER} << EOF

@@ -6,7 +6,7 @@ pipeline {
         AWS_DEFAULT_REGION = 'ap-south-1'
         BUILD_DATE = "${new Date().format('ddMMMyyyy')}"
         BUILD_DIR = "/home/ubuntu"
-        DIST_FILE = ''
+        DIST_FILE = 'env.DIST_FILE'
         FRONTEND_SERVER = ''
         CREDENTIALS_ID = ''
         NODE_OPTIONS = "--max_old_space_size=4096"

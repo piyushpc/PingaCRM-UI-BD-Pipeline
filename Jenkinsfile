@@ -122,7 +122,7 @@ pipeline {
                 sshagent([env.CREDENTIALS_ID]) {
                     echo "[INFO] Deploying build artifact to server: ${FRONTEND_SERVER}"
                     sh '''
-                        ssh -o StrictHostKeyChecking=no ubuntu@${FRONTEND_SERVER} << EOF
+                        sudo -u jenkins ssh -i /home/ubuntu/vkey.pem ubuntu@${FRONTEND_SERVER} << EOF
                         echo "[INFO] Stopping Apache server."
                         sudo service apache2 stop || exit 1
                         echo "[INFO] Apache server stopped."

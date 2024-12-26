@@ -96,7 +96,7 @@ pipeline {
                     sh '''
                         rm -rf node_modules package-lock.json
                         echo "[INFO] Removed existing dependencies."
-                        npm ci || exit 1
+                        npm install --legacy-peer-deps || exit 1
                         echo "[INFO] Dependencies installed successfully."
                         npm run build || exit 1
                         echo "[INFO] Build process completed successfully."

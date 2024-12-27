@@ -17,6 +17,14 @@ pipeline {
 
 
     stages {
+        stage('Debug Environment Variables') {
+    steps {
+        script {
+            sh 'env | sort'
+        }
+    }
+}
+
         stage('Setup AWS Credentials') {
             steps {
                 script {

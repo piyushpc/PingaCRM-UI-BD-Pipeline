@@ -113,8 +113,6 @@ pipeline {
                         while ! npm run build -- --progress=true; do
                         echo "[INFO] Build still running..."; sleep 30
                     done
-                    '''
-                    '''
                         echo "[INFO] Build process completed successfully."
                         sudo tar -czvf ${BUILD_DIR}/${DIST_FILE} dist || exit 1
                         echo "[INFO] Build artifacts compressed into ${BUILD_DIR}/${DIST_FILE}."

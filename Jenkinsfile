@@ -109,7 +109,7 @@ pipeline {
                         echo "[INFO] Removed existing dependencies."
                         npm install --legacy-peer-deps || exit 1
                         echo "[INFO] Dependencies installed successfully."
-                        npm run build || exit 1
+                        npm run build -- --progress=true || exit 1
                         echo "[INFO] Build process completed successfully."
                         sudo tar -czvf ${BUILD_DIR}/${DIST_FILE} dist || exit 1
                         echo "[INFO] Build artifacts compressed into ${BUILD_DIR}/${DIST_FILE}."

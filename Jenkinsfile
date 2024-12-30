@@ -128,6 +128,8 @@ pipeline {
     echo "[INFO] Copied configuration file: ${configFile}"
 }
 
+                sh 'echo "Cleaning up node_modules and package-lock.json"'
+                sh 'ls -l node_modules'
                 rm -rf node_modules package-lock.json || exit 1
                 echo "[INFO] Removed existing dependencies."
                 npm install --legacy-peer-deps --no-audit --no-fund || exit 1

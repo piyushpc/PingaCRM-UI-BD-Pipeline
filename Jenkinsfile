@@ -11,7 +11,7 @@ pipeline {
     }
 
     parameters {
-        string(name: 'ENVIRONMENT', defaultValue: 'dev', description: 'Deployment environment: dev, uat, prod')
+        Choice(name: 'ENVIRONMENT', defaultValue: 'dev', description: 'Deployment environment: dev, uat, prod')
     }
 
 

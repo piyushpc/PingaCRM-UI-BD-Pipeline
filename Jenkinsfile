@@ -112,6 +112,25 @@ pipeline {
             sh '''
                 rm -rf node_modules package-lock.json
                 echo "[INFO] Removed existing dependencies."
+
+                script {
+    def configFile
+    switch (params.ENVIRONMENT) {
+        case 'dev':
+            configFile = '/home/ubuntu/data.service.ts.dev'
+            break
+        case 'uat':
+            configFile = '/home/ubuntu/data.service.ts.uat'
+            break
+        case 'prod':
+            configFile = '/home/ubuntu/data.service.ts.prod'
+            break
+    }
+    sh "cp ${configFile} /home/ubuntu/pinga/trunk/src/app/service/data.service.ts || exit 1"
+    echo "[INFO] Copied configuration file: ${configFile}"
+}
+
+
                 npm install --legacy-peer-deps || exit 1
                 echo "[INFO] Dependencies installed successfully."
                 while true; do

@@ -101,22 +101,27 @@ pipeline {
         }
 
         stage('Install Dependencies & Build') {
-            steps {
-                dir('/home/ubuntu/pinga/trunk') {
-                    echo "[INFO] Installing dependencies and preparing build."
-                    sh '''
-                        rm -rf node_modules package-lock.json
-                        echo "[INFO] Removed existing dependencies."
-                        npm install --legacy-peer-deps || exit 1
-                        echo "[INFO] Dependencies installed successfully."
-                        npm run build || exit 1
-                        echo "[INFO] Build process completed successfully."
-                        sudo tar -czvf ${BUILD_DIR}/${DIST_FILE} dist || exit 1
-                        echo "[INFO] Build artifacts compressed into ${BUILD_DIR}/${DIST_FILE}."
-                    '''
-                }
-            }
+    steps {
+        dir('/home/ubuntu/pinga/trunk') {
+            echo "[INFO] Installing dependencies and preparing build."
+            sh '''
+                rm -rf node_modules package-lock.json
+                echo "[INFO] Removed existing dependencies."
+                npm install --legacy-peer-deps || exit 1
+                echo "[INFO] Dependencies installed successfully."
+                while true; do
+                    npm run build -- --progress=true && break
+                    echo "[INFO] Build still in progress..." && sleep 30
+                done
+                echo "[INFO] Build process completed successfully."
+                ls -la dist || exit 1
+                sudo tar -czvf ${BUILD_DIR}/${DIST_FILE} dist || exit 1
+                echo "[INFO] Build artifacts compressed into ${BUILD_DIR}/${DIST_FILE}."
+            '''
         }
+    }
+}
+
 
         stage('Upload Build Artifact to S3') {
             steps {

@@ -130,11 +130,12 @@ pipeline {
     echo "[INFO] Copied configuration file: ${configFile}"
 }
 
+                rm -rf node_modules package-lock.json || exit 1
+                npm install --legacy-peer-deps --no-audit --no-fund || exit 1
 
-                npm install --legacy-peer-deps || exit 1
                 echo "[INFO] Dependencies installed successfully."
                 while true; do
-                    npm run build -- --progress=true && break
+                    export NODE_OPTIONS=--max_old_space_size=4096 && npm run build -- --progress=true --no-sourcemap
                     echo "[INFO] Build still in progress..." && sleep 30
                 done
                 echo "[INFO] Build process completed successfully."

@@ -123,7 +123,7 @@ pipeline {
                         npm install --legacy-peer-deps || exit 1
                         echo "[INFO] Dependencies installed successfully."
                         while true; do
-                            sh 'npm run build --verbose --progress=true'
+                            sh npm run build --verbose --progress=true
                             echo "[INFO] Build still in progress..." && sleep 30
                         done
                         echo "[INFO] Build process completed successfully."

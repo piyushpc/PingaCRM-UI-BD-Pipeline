@@ -116,35 +116,60 @@ pipeline {
         stage('Install Dependencies & Build') {
             steps {
                 dir('/home/ubuntu/pinga/trunk') {
-                    echo "[INFO] Installing dependencies and preparing build."
-                    sh '''
-                        rm -rf node_modules package-lock.json
-                        echo "[INFO] Removed existing dependencies."
-                        npm install --legacy-peer-deps || exit 1
-                        echo "[INFO] Dependencies installed successfully."
-                        while true; do
-                    npm run build -- --progress=true && break
-                    echo "[INFO] Build still in progress..." && sleep 30
-                done
-                            sh npm run build --verbose --progress=true
-                            echo "[INFO] Build still in progress..." && sleep 30
-                        done
-                        echo "[INFO] Build process completed successfully."
-                        sudo tar -czvf ${BUILD_DIR}/${DIST_FILE} dist || exit 1
-                        echo "[INFO] Build artifacts compressed into ${BUILD_DIR}/${DIST_FILE}."
-                    '''
+                   stages {
+        stage('Install Dependencies') {
+            steps {
+                script {
+                    // Clean and install dependencies with legacy peer deps
+                    sh 'rm -rf node_modules package-lock.json'
+                    sh 'npm install --legacy-peer-deps'
                 }
             }
         }
 
-        stage('Upload Build Artifact to S3') {
+        stage('Fix Vulnerabilities') {
+            steps {
+                script {
+                    // Run npm audit fix to resolve vulnerabilities
+                    sh 'npm audit fix || echo "Audit fix failed; ignoring remaining issues."'
+                    sh 'npm audit fix --force || echo "Force audit fix failed (some breaking changes may remain)"'
+                }
+            }
+        }
+
+        stage('Build') {
+            steps {
+                script {
+                    // Run the build command (assuming Angular or another tool)
+                   // sh 'npm run build --progress=true'
+                    npm run build -- --progress=true && break
+                    echo "[INFO] Build still in progress..." && sleep 30
+                done
+                }
+            }
+        }
+
+        // Additional stages for testing, deployment, etc.
+         stage('Upload Build Artifact to S3') {
             steps {
                 echo "[INFO] Uploading build artifact to S3 bucket."
                 sh "aws s3 cp ${BUILD_DIR}/${DIST_FILE} s3://pinga-builds/ || exit 1"
                 echo "[INFO] Build artifact uploaded successfully to s3://pinga-builds/${DIST_FILE}."
             }
         }
+    }
 
+    post {
+        always {
+            // Cleanup, notification, or other steps after pipeline completion
+            echo 'Pipeline completed.'
+        }
+    }
+}
+
+       
+
+        
         stage('Deploy to Server') {
             steps {
                 echo "[INFO] Deploying build artifact to server: ${FRONTEND_SERVER}"

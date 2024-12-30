@@ -110,8 +110,6 @@ pipeline {
         dir('/home/ubuntu/pinga/trunk') {
             echo "[INFO] Installing dependencies and preparing build."
             sh '''
-                rm -rf node_modules package-lock.json
-                echo "[INFO] Removed existing dependencies."
 
                 script {
     def configFile
@@ -131,6 +129,7 @@ pipeline {
 }
 
                 rm -rf node_modules package-lock.json || exit 1
+                echo "[INFO] Removed existing dependencies."
                 npm install --legacy-peer-deps --no-audit --no-fund || exit 1
 
                 echo "[INFO] Dependencies installed successfully."

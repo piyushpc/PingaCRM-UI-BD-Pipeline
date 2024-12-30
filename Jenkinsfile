@@ -8,6 +8,7 @@ pipeline {
         DIST_FILE = ''
         FRONTEND_SERVER = ''
         CREDENTIALS_ID = ''
+        NODE_OPTIONS = '--max_old_space_size=4096'  // Increase Node.js memory limit if needed
     }
 
     parameters {
@@ -18,17 +19,14 @@ pipeline {
     )
 }
 
-
-
-
     stages {
         stage('Debug Environment Variables') {
-    steps {
-        script {
-            sh 'env | sort'
+            steps {
+                script {
+                    sh 'env | sort'
+                }
+            }
         }
-    }
-}
 
         stage('Setup AWS Credentials') {
             steps {
@@ -39,7 +37,6 @@ pipeline {
                     }
                 }
             }
-            
         }
 
         stage('Initialize') {
@@ -49,12 +46,12 @@ pipeline {
                     switch (params.ENVIRONMENT) {
                         case 'dev':
                             env.DIST_FILE = "dist-dev-${env.BUILD_DATE}-new.tar.gz"
-                            env.FRONTEND_SERVER = "ec2-15-207-107-0.ap-south-1.compute.amazonaws.com"
+                            env.FRONTEND_SERVER = "crmdev.pingacrm.com"
                             env.CREDENTIALS_ID = "dev-frontend-ssh-key"
                             break
                         case 'uat':
                             env.DIST_FILE = "dist-uat-${env.BUILD_DATE}-new.tar.gz"
-                            env.FRONTEND_SERVER = "ec2-13-235-77-253.ap-south-1.compute.amazonaws.com"
+                            env.FRONTEND_SERVER = "crmuat.pingacrm.com"
                             env.CREDENTIALS_ID = "uat-frontend-ssh-key"
                             break
                         case 'prod':
@@ -105,49 +102,37 @@ pipeline {
             }
         }
 
-        stage('Install Dependencies & Build') {
-    steps {
-        dir('/home/ubuntu/pinga/trunk') {
-            echo "[INFO] Installing dependencies and preparing build."
-            sh '''
-
+        stage('Copy Environment-Specific Configuration File') {
+            steps {
+                echo "[INFO] Copying environment-specific configuration file."
                 script {
-    def configFile
-    switch (params.ENVIRONMENT) {
-        case 'dev':
-            configFile = '/home/ubuntu/data.service.ts.dev'
-            break
-        case 'uat':
-            configFile = '/home/ubuntu/data.service.ts.uat'
-            break
-        case 'prod':
-            configFile = '/home/ubuntu/data.service.ts.prod'
-            break
-    }
-    sh "cp ${configFile} /home/ubuntu/pinga/trunk/src/app/service/data.service.ts || exit 1"
-    echo "[INFO] Copied configuration file: ${configFile}"
-}
-
-                sh 'echo "Cleaning up node_modules and package-lock.json"'
-                sh 'ls -l node_modules'
-                rm -rf node_modules package-lock.json || exit 1
-                echo "[INFO] Removed existing dependencies."
-                npm install --legacy-peer-deps --no-audit --no-fund || exit 1
-
-                echo "[INFO] Dependencies installed successfully."
-                while true; do
-                    export NODE_OPTIONS=--max_old_space_size=4096 && npm run build -- --progress=true --no-sourcemap
-                    echo "[INFO] Build still in progress..." && sleep 30
-                done
-                echo "[INFO] Build process completed successfully."
-                ls -la dist || exit 1
-                sudo tar -czvf ${BUILD_DIR}/${DIST_FILE} dist || exit 1
-                echo "[INFO] Build artifacts compressed into ${BUILD_DIR}/${DIST_FILE}."
-            '''
+                    def configFilePath = "/home/ubuntu/data.service.ts.${params.ENVIRONMENT}"
+                    sh "cp ${configFilePath} /home/ubuntu/pinga/trunk/src/app/service/data.service.ts || exit 1"
+                }
+                echo "[INFO] Configuration file copied successfully."
+            }
         }
-    }
-}
 
+        stage('Install Dependencies & Build') {
+            steps {
+                dir('/home/ubuntu/pinga/trunk') {
+                    echo "[INFO] Installing dependencies and preparing build."
+                    sh '''
+                        rm -rf node_modules package-lock.json
+                        echo "[INFO] Removed existing dependencies."
+                        npm install --legacy-peer-deps || exit 1
+                        echo "[INFO] Dependencies installed successfully."
+                        while true; do
+                            npm run build -- --progress=true && break
+                            echo "[INFO] Build still in progress..." && sleep 30
+                        done
+                        echo "[INFO] Build process completed successfully."
+                        sudo tar -czvf ${BUILD_DIR}/${DIST_FILE} dist || exit 1
+                        echo "[INFO] Build artifacts compressed into ${BUILD_DIR}/${DIST_FILE}."
+                    '''
+                }
+            }
+        }
 
         stage('Upload Build Artifact to S3') {
             steps {
@@ -159,7 +144,6 @@ pipeline {
 
         stage('Deploy to Server') {
             steps {
-                echo "FRONTEND_SERVER=${env.FRONTEND_SERVER}"
                 echo "[INFO] Deploying build artifact to server: ${FRONTEND_SERVER}"
                 sh '''
                     sudo -u jenkins ssh -i /home/ubuntu/vkey.pem ubuntu@${FRONTEND_SERVER} << EOF

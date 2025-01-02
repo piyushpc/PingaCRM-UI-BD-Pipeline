@@ -46,7 +46,7 @@ pipeline {
                     switch (params.ENVIRONMENT) {
                         case 'dev':
                             env.DIST_FILE = "dist-dev-${env.BUILD_DATE}-new.tar.gz"
-                            env.FRONTEND_SERVER = "crmdev.pingacrm.com"
+                            env.FRONTEND_SERVER = "ec2-3-110-190-110.ap-south-1.compute.amazonaws.com"
                             env.CREDENTIALS_ID = "dev-frontend-ssh-key"
                             break
                         case 'uat':

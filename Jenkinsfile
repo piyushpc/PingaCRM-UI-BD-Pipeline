@@ -159,20 +159,20 @@ stage('Compress & Upload Build Artifacts') {
                 echo "[INFO] Build artifacts compressed successfully into ${TAR_PATH}."
                 """
 
-                // Upload to S3
-                sh """
-                echo "[INFO] Uploading ${TAR_PATH} to S3 bucket."
-                if ! aws s3 cp "${TAR_PATH}" s3://pinga-builds/; then
-                  echo "[ERROR] Failed to upload ${TAR_PATH} to S3. Exiting."
-                  exit 1
-                else
-                  echo "[INFO] Build artifact uploaded successfully to s3://pinga-builds/${DIST_FILE}."
-                fi
-                """
+                // Upload to S3 with proper error handling
+                sh '''
+                    if aws s3 cp "${TAR_PATH}" s3://pinga-builds/; then
+                        echo "[INFO] Successfully uploaded ${TAR_PATH} to S3."
+                    else
+                        echo "[ERROR] Failed to upload ${TAR_PATH} to S3. Exiting."
+                        exit 1
+                    fi
+                '''
             }
         }
     }
 }
+
 
          //echo "[INFO] DIST_FILE=${env.DIST_FILE}, FRONTEND_SERVER=${env.FRONTEND_SERVER}, CREDENTIALS_ID=${env.CREDENTIALS_ID}"
      

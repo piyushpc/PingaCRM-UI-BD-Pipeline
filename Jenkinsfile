@@ -8,7 +8,7 @@ pipeline {
         DIST_FILE = ''
         FRONTEND_SERVER = ''
         CREDENTIALS_ID = ''
-        NODE_OPTIONS = '--max_old_space_size=4096'  // Increase Node.js memory limit if needed
+       // NODE_OPTIONS = '--max_old_space_size=4096'  // Increase Node.js memory limit if needed
     }
 
     parameters {

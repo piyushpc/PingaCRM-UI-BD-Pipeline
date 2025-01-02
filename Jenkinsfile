@@ -1,6 +1,3 @@
-bro see !!
-
-
 pipeline {
     agent any
 

@@ -174,26 +174,26 @@ stage('Compress & Upload Build Artifacts') {
     }
 }
 
+         echo "[INFO] DIST_FILE=${env.DIST_FILE}, FRONTEND_SERVER=${env.FRONTEND_SERVER}, CREDENTIALS_ID=${env.CREDENTIALS_ID}"
      
         stage('Deploy to Server') {
     steps {
-        script {
-            echo "[INFO] Verifying frontend server availability: ${FRONTEND_SERVER}"
+        echo "[INFO] Verifying frontend server availability: ${FRONTEND_SERVER}"
 
-            // Check if the frontend server is reachable using SSH
-            withCredentials([sshUserPrivateKey(credentialsId: "${env.CREDENTIALS_ID}", keyFileVariable: 'SSH_KEY_PATH')]) {
-                sh """
-                    if ! ssh -i ${SSH_KEY_PATH} -o ConnectTimeout=10 ubuntu@${FRONTEND_SERVER} 'exit'; then
-                        echo "[ERROR] Unable to connect to ${FRONTEND_SERVER}. Exiting.";
-                        exit 1;
-                    fi
-                """
-            }
+        // Check if the frontend server is reachable using SSH
+        withCredentials([sshUserPrivateKey(credentialsId: "${env.CREDENTIALS_ID}", keyFileVariable: 'SSH_KEY_PATH')]) {
+            sh """
+                if ! ssh -i ${SSH_KEY_PATH} -o ConnectTimeout=10 ubuntu@${FRONTEND_SERVER} 'exit'; then
+                    echo "[ERROR] Unable to connect to ${FRONTEND_SERVER}. Exiting.";
+                    exit 1;
+                fi
+            """
         }
+
         echo "[INFO] Deploying build artifact to server: ${FRONTEND_SERVER}"
-        withCredentials([sshUserPrivateKey(credentialsId: "${env.CREDENTIALS_ID}", keyFileVariable: '/home/ubuntu/vkey.pem')]) {
+        withCredentials([sshUserPrivateKey(credentialsId: "${env.CREDENTIALS_ID}", keyFileVariable: 'SSH_KEY_PATH')]) {
             sh '''
-                sudo -u jenkins ssh -i ${SSH_KEY_PATH} ubuntu@${FRONTEND_SERVER} << EOF
+                ssh -i ${SSH_KEY_PATH} ubuntu@${FRONTEND_SERVER} << EOF
                 echo "[INFO] Stopping Apache server."
                 sudo service apache2 stop || exit 1
                 echo "[INFO] Apache server stopped."
@@ -208,12 +208,9 @@ stage('Compress & Upload Build Artifacts') {
                     echo "[INFO] Backup of existing deployment completed."
                 fi
 
-                echo "[INFO] Preparing temporary directory for deployment."
+                echo "[INFO] Deploying new build to web server."
                 mkdir -p /tmp/${ENVIRONMENT}-dist || exit 1
                 tar -xvf ${DIST_FILE} -C /tmp/${ENVIRONMENT}-dist || exit 1
-                echo "[INFO] Build artifact extracted successfully."
-
-                echo "[INFO] Deploying new build to web server."
                 sudo mv /tmp/${ENVIRONMENT}-dist/dist/* /var/www/html/pinga || exit 1
                 sudo chown -R www-data:www-data /var/www/html/pinga || exit 1
                 echo "[INFO] New build deployed successfully."
@@ -227,7 +224,6 @@ stage('Compress & Upload Build Artifacts') {
     }
 }
 
-        echo "[INFO] DIST_FILE=${env.DIST_FILE}, FRONTEND_SERVER=${env.FRONTEND_SERVER}, CREDENTIALS_ID=${env.CREDENTIALS_ID}"
 
 
         stage('Post-Deployment Verification') {

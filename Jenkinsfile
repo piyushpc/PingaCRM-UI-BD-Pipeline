@@ -67,13 +67,13 @@ pipeline {
             }
         }
 
-        stage('Backup Current Code') {
-            steps {
-                echo "[INFO] Backing up current deployment at /home/ubuntu/pinga"
-                sh "sudo cp -R /home/ubuntu/pinga /home/ubuntu/pinga-${env.BUILD_DATE}-backup || exit 1"
-                echo "[INFO] Backup completed successfully."
-            }
-        }
+      //  stage('Backup Current Code') {
+        //    steps {
+        //        echo "[INFO] Backing up current deployment at /home/ubuntu/pinga"
+        //        sh "sudo cp -R /home/ubuntu/pinga /home/ubuntu/pinga-${env.BUILD_DATE}-backup || exit 1"
+        //        echo "[INFO] Backup completed successfully."
+        //    }
+      //  }
 
         stage('Clean Old Build Files') {
             steps {
@@ -83,24 +83,24 @@ pipeline {
             }
         }
 
-        stage('Fetch Latest Code from SVN') {
-            steps {
-                script {
-                    echo "[INFO] Fetching latest code from SVN repository."
-                    def svnUrl = "https://extsvn.pingacrm.com/svn/pingacrm-frontend-new/trunk"
+      //  stage('Fetch Latest Code from SVN') {
+     //       steps {
+     ////           script {
+     ///               echo "[INFO] Fetching latest code from SVN repository."
+      ///              def svnUrl = "https://extsvn.pingacrm.com/svn/pingacrm-frontend-new/trunk"
 
-         /           withCredentials([usernamePassword(credentialsId: 'svn-credentials-id', 
-                                                      usernameVariable: 'SVN_USER', 
-                                                      passwordVariable: 'SVN_PASS')]) {
-                        sh """
-                        svn checkout --username ${SVN_USER} --password ${SVN_PASS} ${svnUrl} /home/ubuntu/pinga/trunk || exit 1
-                        """
-                   }
+         //           withCredentials([usernamePassword(credentialsId: 'svn-credentials-id', 
+        //                                              usernameVariable: 'SVN_USER', 
+        //                                              passwordVariable: 'SVN_PASS')]) {
+         //               sh """
+         //               svn checkout --username ${SVN_USER} --password ${SVN_PASS} ${svnUrl} /home/ubuntu/pinga/trunk || exit 1
+        ////                """
+        //            }
 
-                    echo "[INFO] SVN checkout/update completed successfully."
-                }
-            }
-        }
+           //         echo "[INFO] SVN checkout/update completed successfully."
+          //      }
+        ////    }
+   //     }
 
         stage('Copy Environment-Specific Configuration File') {
             steps {
@@ -284,4 +284,3 @@ stage('Compress & Upload Build Artifacts') {
     }
 }
 }
-

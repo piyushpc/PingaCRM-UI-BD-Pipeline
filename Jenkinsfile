@@ -181,7 +181,7 @@ stage('Compress & Upload Build Artifacts') {
         echo "[INFO] Verifying frontend server availability: ${FRONTEND_SERVER}"
 
         // Check if the frontend server is reachable using SSH
-        withCredentials([sshUserPrivateKey(credentialsId: "${env.CREDENTIALS_ID}", keyFileVariable: 'SSH_KEY_PATH')]) {
+        withCredentials([sshUserPrivateKey(credentialsId: "${env.CREDENTIALS_ID}", keyFileVariable: 'home/ubuntu/vkey.pem')]) {
             sh """
                 if ! ssh -i ${SSH_KEY_PATH} -o ConnectTimeout=10 ubuntu@${FRONTEND_SERVER} 'exit'; then
                     echo "[ERROR] Unable to connect to ${FRONTEND_SERVER}. Exiting.";
@@ -192,7 +192,7 @@ stage('Compress & Upload Build Artifacts') {
 
         echo "[INFO] Deploying build artifact to server: ${FRONTEND_SERVER}"
 
-        withCredentials([sshUserPrivateKey(credentialsId: "${env.CREDENTIALS_ID}", keyFileVariable: 'SSH_KEY_PATH')]) {
+        withCredentials([sshUserPrivateKey(credentialsId: "${env.CREDENTIALS_ID}", keyFileVariable: 'home/ubuntu/vkey.pem')]) {
             sh '''
                 # SSH into the server and perform deployment steps dynamically based on the environment
                 ssh -i ${SSH_KEY_PATH} ubuntu@${FRONTEND_SERVER} << EOF

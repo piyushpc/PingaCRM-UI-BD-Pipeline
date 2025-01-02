@@ -67,13 +67,13 @@ pipeline {
             }
         }
 
-      //  stage('Backup Current Code') {
-        //    steps {
-        //        echo "[INFO] Backing up current deployment at /home/ubuntu/pinga"
-        //        sh "sudo cp -R /home/ubuntu/pinga /home/ubuntu/pinga-${env.BUILD_DATE}-backup || exit 1"
-        //        echo "[INFO] Backup completed successfully."
-        //    }
-      //  }
+        stage('Backup Current Code') {
+            steps {
+                echo "[INFO] Backing up current deployment at /home/ubuntu/pinga"
+                sh "sudo cp -R /home/ubuntu/pinga /home/ubuntu/pinga-${env.BUILD_DATE}-backup || exit 1"
+                echo "[INFO] Backup completed successfully."
+            }
+        }
 
         stage('Clean Old Build Files') {
             steps {
@@ -83,24 +83,24 @@ pipeline {
             }
         }
 
-      //  stage('Fetch Latest Code from SVN') {
-     //       steps {
-     ////           script {
-     ///               echo "[INFO] Fetching latest code from SVN repository."
-      ///              def svnUrl = "https://extsvn.pingacrm.com/svn/pingacrm-frontend-new/trunk"
+        stage('Fetch Latest Code from SVN') {
+            steps {
+                script {
+                    echo "[INFO] Fetching latest code from SVN repository."
+                    def svnUrl = "https://extsvn.pingacrm.com/svn/pingacrm-frontend-new/trunk"
 
-         //           withCredentials([usernamePassword(credentialsId: 'svn-credentials-id', 
-        //                                              usernameVariable: 'SVN_USER', 
-        //                                              passwordVariable: 'SVN_PASS')]) {
-         //               sh """
-         //               svn checkout --username ${SVN_USER} --password ${SVN_PASS} ${svnUrl} /home/ubuntu/pinga/trunk || exit 1
-        ////                """
-        //            }
+         /           withCredentials([usernamePassword(credentialsId: 'svn-credentials-id', 
+                                                      usernameVariable: 'SVN_USER', 
+                                                      passwordVariable: 'SVN_PASS')]) {
+                        sh """
+                        svn checkout --username ${SVN_USER} --password ${SVN_PASS} ${svnUrl} /home/ubuntu/pinga/trunk || exit 1
+                        """
+                   }
 
-           //         echo "[INFO] SVN checkout/update completed successfully."
-          //      }
-        ////    }
-   //     }
+                    echo "[INFO] SVN checkout/update completed successfully."
+                }
+            }
+        }
 
         stage('Copy Environment-Specific Configuration File') {
             steps {
@@ -176,113 +176,107 @@ stage('Compress & Upload Build Artifacts') {
 
          //echo "[INFO] DIST_FILE=${env.DIST_FILE}, FRONTEND_SERVER=${env.FRONTEND_SERVER}, CREDENTIALS_ID=${env.CREDENTIALS_ID}"
      
-        stage('Deploy to Server') {
-    steps {
-        echo "[INFO] Verifying frontend server availability: ${FRONTEND_SERVER}"
+                stage('Deploy to Server') {
+            steps {
+                echo "[INFO] Verifying frontend server availability: ${FRONTEND_SERVER}"
 
-        // Check if the frontend server is reachable using SSH
-        withCredentials([sshUserPrivateKey(credentialsId: "${env.CREDENTIALS_ID}", keyFileVariable: 'home/ubuntu/vkey.pem')]) {
-            sh """
-                if ! ssh -i ${SSH_KEY_PATH} -o ConnectTimeout=10 ubuntu@${FRONTEND_SERVER} 'exit'; then
-                    echo "[ERROR] Unable to connect to ${FRONTEND_SERVER}. Exiting.";
-                    exit 1;
-                fi
-            """
+                // Check if the frontend server is reachable using SSH
+                withCredentials([sshUserPrivateKey(credentialsId: "${env.CREDENTIALS_ID}", keyFileVariable: 'SSH_KEY_PATH')]) {
+                    sh """
+                        if ! ssh -i ${SSH_KEY_PATH} -o ConnectTimeout=10 ubuntu@${FRONTEND_SERVER} 'exit'; then
+                            echo "[ERROR] Unable to connect to ${FRONTEND_SERVER}. Exiting.";
+                            exit 1;
+                        fi
+                    """
+                }
+
+                echo "[INFO] Deploying build artifact to server: ${FRONTEND_SERVER}"
+
+                withCredentials([sshUserPrivateKey(credentialsId: "${env.CREDENTIALS_ID}", keyFileVariable: 'SSH_KEY_PATH')]) {
+                    sh '''
+                        # SSH into the server and perform deployment steps dynamically based on the environment
+                        ssh -i ${SSH_KEY_PATH} ubuntu@${FRONTEND_SERVER} << EOF
+                        echo "[INFO] Stopping Apache server."
+                        sudo service apache2 stop || exit 1
+                        echo "[INFO] Apache server stopped."
+
+                        echo "[INFO] Downloading build artifact from S3."
+                        aws s3 cp s3://pinga-builds/${DIST_FILE} . || exit 1
+                        echo "[INFO] Build artifact downloaded successfully."
+
+                        # Backup existing deployment (only for prod environments)
+                        if [ "${params.ENVIRONMENT}" == "prod" ]; then
+                            if [ -d /var/www/html/pinga ]; then
+                                echo "[INFO] Backing up existing deployment."
+                                sudo mv /var/www/html/pinga /var/www/html/pinga-backup-${BUILD_DATE} || exit 1
+                                echo "[INFO] Backup of existing deployment completed."
+                            fi
+                        fi
+
+                        # Deploy the new build
+                        echo "[INFO] Deploying new build to web server."
+                        mkdir -p /tmp/${ENVIRONMENT}-dist || exit 1
+                        tar -xvf ${DIST_FILE} -C /tmp/${ENVIRONMENT}-dist || exit 1
+                        sudo mv /tmp/${ENVIRONMENT}-dist/dist/* /var/www/html/pinga || exit 1
+                        sudo chown -R www-data:www-data /var/www/html/pinga || exit 1
+                        echo "[INFO] New build deployed successfully."
+
+                        echo "[INFO] Starting Apache server."
+                        sudo service apache2 start || exit 1
+                        echo "[INFO] Apache server started."
+                        EOF
+                    '''
+                }
+            }
         }
 
-        echo "[INFO] Deploying build artifact to server: ${FRONTEND_SERVER}"
-
-        withCredentials([sshUserPrivateKey(credentialsId: "${env.CREDENTIALS_ID}", keyFileVariable: 'home/ubuntu/vkey.pem')]) {
-            sh '''
-                # SSH into the server and perform deployment steps dynamically based on the environment
-                ssh -i ${/home/ubuntu/vkey.pem} ubuntu@${FRONTEND_SERVER} << EOF
-                echo "[INFO] Stopping Apache server."
-                sudo service apache2 stop || exit 1
-                echo "[INFO] Apache server stopped."
-
-                echo "[INFO] Downloading build artifact from S3."
-                aws s3 cp s3://pinga-builds/${DIST_FILE} . || exit 1
-                echo "[INFO] Build artifact downloaded successfully."
-
-                # Backup existing deployment (only for prod environments)
-                if [ "${params.ENVIRONMENT}" == "prod" ]; then
-                    if [ -d /var/www/html/pinga ]; then
-                        echo "[INFO] Backing up existing deployment."
-                        sudo mv /var/www/html/pinga /var/www/html/pinga-backup-${BUILD_DATE} || exit 1
-                        echo "[INFO] Backup of existing deployment completed."
-                    fi
-                fi
-
-                # Deploy the new build
-                echo "[INFO] Deploying new build to web server."
-                mkdir -p /tmp/${ENVIRONMENT}-dist || exit 1
-                tar -xvf ${DIST_FILE} -C /tmp/${ENVIRONMENT}-dist || exit 1
-                sudo mv /tmp/${ENVIRONMENT}-dist/dist/* /var/www/html/pinga || exit 1
-                sudo chown -R www-data:www-data /var/www/html/pinga || exit 1
-                echo "[INFO] New build deployed successfully."
-
-                echo "[INFO] Starting Apache server."
-                sudo service apache2 start || exit 1
-                echo "[INFO] Apache server started."
-                EOF
-            '''
-        }
-    }
-}
         stage('Post-Deployment Verification') {
             steps {
                 script {
                     echo "[INFO] Verifying deployment by checking application health."
-                    def testCommand = "curl --fail https://${FRONTEND_SERVER} || exit 1"
-                    sh '''
-                        sudo -u jenkins ssh -i /home/ubuntu/vkey.pem ubuntu@${FRONTEND_SERVER} ${testCommand}
-                    '''
+                    def testCommand = "curl --fail https://${FRONTEND_SERVER}/health || exit 1" // Assuming health endpoint exists
+                    sh """
+                        ssh -i ${SSH_KEY_PATH} ubuntu@${FRONTEND_SERVER} ${testCommand}
+                    """
                     echo "[INFO] Deployment verification successful. Application is accessible."
                 }
             }
         }
-    }
 
     post {
-    success {
-        echo "[INFO] Pipeline executed successfully."
-    }
-    failure {
-        echo "[ERROR] Pipeline failed. Initiating rollback."
-        withCredentials([sshUserPrivateKey(credentialsId: "${env.CREDENTIALS_ID}", keyFileVariable: 'SSH_KEY_PATH')]) {
-            sh '''
-                ssh -i ${SSH_KEY_PATH} ubuntu@${FRONTEND_SERVER} << EOF
-                # Stop Apache server before rollback
-                echo "[INFO] Stopping Apache server for rollback."
-                sudo service apache2 stop || { echo "[ERROR] Failed to stop Apache server."; exit 1; }
-                
-                # Check for backup directory existence
-                if [ ! -d /var/www/html/pinga-backup-${BUILD_DATE} ]; then
-                    echo "[ERROR] Backup not found. Rollback aborted. Manual intervention required."
-                    exit 1
-                fi
+        success {
+            echo "[INFO] Pipeline executed successfully."
+        }
+        failure {
+            echo "[ERROR] Pipeline failed. Initiating rollback."
+            withCredentials([sshUserPrivateKey(credentialsId: "${env.CREDENTIALS_ID}", keyFileVariable: 'SSH_KEY_PATH')]) {
+                sh '''
+                    ssh -i ${SSH_KEY_PATH} ubuntu@${FRONTEND_SERVER} << EOF
+                    # Stop Apache server before rollback
+                    echo "[INFO] Stopping Apache server for rollback."
+                    sudo service apache2 stop || { echo "[ERROR] Failed to stop Apache server."; exit 1; }
+                    
+                    # Check for backup directory existence
+                    if [ ! -d /var/www/html/pinga-backup-${BUILD_DATE} ]; then
+                        echo "[ERROR] Backup not found. Rollback aborted. Manual intervention required."
+                        exit 1
+                    fi
 
-                script {
-    echo "[DEBUG] CREDENTIALS_ID=${env.CREDENTIALS_ID}"
-}
+                    # Perform rollback
+                    echo "[INFO] Rolling back to previous deployment."
+                    sudo rm -rf /var/www/html/pinga || { echo "[ERROR] Failed to remove current deployment."; exit 1; }
+                    sudo mv /var/www/html/pinga-backup-${BUILD_DATE} /var/www/html/pinga || { echo "[ERROR] Failed to restore backup."; exit 1; }
+                    sudo chown -R www-data:www-data /var/www/html/pinga || { echo "[ERROR] Failed to set permissions on restored files."; exit 1; }
 
+                    # Restart Apache server
+                    echo "[INFO] Restarting Apache server after rollback."
+                    sudo service apache2 start || { echo "[ERROR] Failed to start Apache server."; exit 1; }
 
-                # Perform rollback
-                echo "[INFO] Rolling back to previous deployment."
-                sudo rm -rf /var/www/html/pinga || { echo "[ERROR] Failed to remove current deployment."; exit 1; }
-                sudo mv /var/www/html/pinga-backup-${BUILD_DATE} /var/www/html/pinga || { echo "[ERROR] Failed to restore backup."; exit 1; }
-                sudo chown -R www-data:www-data /var/www/html/pinga || { echo "[ERROR] Failed to set permissions on restored files."; exit 1; }
-
-                # Restart Apache server
-                echo "[INFO] Restarting Apache server after rollback."
-                sudo service apache2 start || { echo "[ERROR] Failed to start Apache server."; exit 1; }
-
-                echo "[INFO] Rollback completed successfully."
-                EOF
-            '''
+                    echo "[INFO] Rollback completed successfully."
+                    EOF
+                '''
+            }
         }
     }
-}
-}
 
 

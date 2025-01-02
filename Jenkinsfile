@@ -229,10 +229,6 @@ stage('Compress & Upload Build Artifacts') {
         }
     }
 }
-
-}
-
-
         stage('Post-Deployment Verification') {
             steps {
                 script {
@@ -282,5 +278,5 @@ stage('Compress & Upload Build Artifacts') {
         }
     }
 }
-
+}
 

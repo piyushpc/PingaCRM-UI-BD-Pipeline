@@ -176,41 +176,52 @@ stage('Compress & Upload Build Artifacts') {
 
      
         stage('Deploy to Server') {
-            steps {
-                echo "[INFO] Deploying build artifact to server: ${FRONTEND_SERVER}"
-                sh '''
-                    sudo -u jenkins ssh -i /home/ubuntu/vkey.pem ubuntu@${FRONTEND_SERVER} << EOF
-                    echo "[INFO] Stopping Apache server."
-                    sudo service apache2 stop || exit 1
-                    echo "[INFO] Apache server stopped."
-
-                    echo "[INFO] Downloading build artifact from S3."
-                    aws s3 cp s3://pinga-builds/${DIST_FILE} . || exit 1
-                    echo "[INFO] Build artifact downloaded successfully."
-
-                    if [ -d /var/www/html/pinga ]; then
-                        echo "[INFO] Backing up existing deployment."
-                        sudo mv /var/www/html/pinga /var/www/html/pinga-backup-${BUILD_DATE} || exit 1
-                        echo "[INFO] Backup of existing deployment completed."
-                    fi
-
-                    echo "[INFO] Preparing temporary directory for deployment."
-                    mkdir -p /tmp/${ENVIRONMENT}-dist || exit 1
-                    tar -xvf ${DIST_FILE} -C /tmp/${ENVIRONMENT}-dist || exit 1
-                    echo "[INFO] Build artifact extracted successfully."
-
-                    echo "[INFO] Deploying new build to web server."
-                    sudo mv /tmp/${ENVIRONMENT}-dist/dist/* /var/www/html/pinga || exit 1
-                    sudo chown -R www-data:www-data /var/www/html/pinga || exit 1
-                    echo "[INFO] New build deployed successfully."
-
-                    echo "[INFO] Starting Apache server."
-                    sudo service apache2 start || exit 1
-                    echo "[INFO] Apache server started."
-                    EOF
-                '''
-            }
+    steps {
+        script {
+            echo "[INFO] Verifying frontend server availability: ${FRONTEND_SERVER}"
+            // Check if the frontend server is reachable using SSH
+            sh """
+                if ! ssh -i /home/ubuntu/vkey.pem -o ConnectTimeout=10 ubuntu@${FRONTEND_SERVER} 'exit'; then
+                    echo "[ERROR] Unable to connect to ${FRONTEND_SERVER}. Exiting.";
+                    exit 1;
+                fi
+            """
         }
+        echo "[INFO] Deploying build artifact to server: ${FRONTEND_SERVER}"
+        sh '''
+            sudo -u jenkins ssh -i /home/ubuntu/vkey.pem ubuntu@${FRONTEND_SERVER} << EOF
+            echo "[INFO] Stopping Apache server."
+            sudo service apache2 stop || exit 1
+            echo "[INFO] Apache server stopped."
+
+            echo "[INFO] Downloading build artifact from S3."
+            aws s3 cp s3://pinga-builds/${DIST_FILE} . || exit 1
+            echo "[INFO] Build artifact downloaded successfully."
+
+            if [ -d /var/www/html/pinga ]; then
+                echo "[INFO] Backing up existing deployment."
+                sudo mv /var/www/html/pinga /var/www/html/pinga-backup-${BUILD_DATE} || exit 1
+                echo "[INFO] Backup of existing deployment completed."
+            fi
+
+            echo "[INFO] Preparing temporary directory for deployment."
+            mkdir -p /tmp/${ENVIRONMENT}-dist || exit 1
+            tar -xvf ${DIST_FILE} -C /tmp/${ENVIRONMENT}-dist || exit 1
+            echo "[INFO] Build artifact extracted successfully."
+
+            echo "[INFO] Deploying new build to web server."
+            sudo mv /tmp/${ENVIRONMENT}-dist/dist/* /var/www/html/pinga || exit 1
+            sudo chown -R www-data:www-data /var/www/html/pinga || exit 1
+            echo "[INFO] New build deployed successfully."
+
+            echo "[INFO] Starting Apache server."
+            sudo service apache2 start || exit 1
+            echo "[INFO] Apache server started."
+            EOF
+        '''
+    }
+}
+
 
         stage('Post-Deployment Verification') {
             steps {

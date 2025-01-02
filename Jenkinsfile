@@ -137,9 +137,29 @@ pipeline {
                 echo "[INFO] Build process completed successfully."
                 
                 # Compress the build artifacts into a tar file
-                sudo tar -czvf ${BUILD_DIR}/${DIST_FILE} dist || exit 1
-                echo "[INFO] Build artifacts compressed into ${BUILD_DIR}/${DIST_FILE}."
+                stage('Compress & Upload Build Artifacts') {
+    steps {
+        echo "[INFO] Compressing and uploading build artifacts..."
+        script {
+            // Compress artifacts
+            sh '''
+            sudo tar -czvf ${BUILD_DIR}/${DIST_FILE} dist || exit 1
+            echo "[INFO] Build artifacts compressed into ${BUILD_DIR}/${DIST_FILE}."
             '''
+
+            // Upload to S3
+            sh '''
+            if ! aws s3 cp "${BUILD_DIR}/${DIST_FILE}" s3://pinga-builds/; then
+              echo "[ERROR] Failed to upload to S3. Exiting."
+              exit 1
+            else
+              echo "[INFO] Build artifact uploaded successfully to s3://pinga-builds/${DIST_FILE}."
+            fi
+            '''
+        }
+    }
+}
+
         }
     }
 }

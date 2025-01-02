@@ -1,5 +1,40 @@
 pipeline {
     agent any
+    environment {
+        FRONTEND_SERVER = 'your.frontend.server.address'  // Set this to your actual frontend server address
+    }
+    stages {
+        stage('Checkout Code') {
+            steps {
+                checkout scm
+            }
+        }
+        stage('Build') {
+            steps {
+                script {
+                    echo "Building application..."
+                    // Add your build steps here
+                }
+            }
+        }
+        stage('Deploy to Server') {
+            steps {
+                script {
+                    echo "Deploying to frontend server at ${env.FRONTEND_SERVER}..."
+                    // Add your deploy steps here, e.g., copying files to server
+                }
+            }
+        }
+        stage('Post-Deployment Verification') {
+            steps {
+                script {
+                    echo "Verifying deployment on ${env.FRONTEND_SERVER}..."
+                    // Add verification steps here
+                }
+            }
+        }
+    }
+}
 
     environment {
         AWS_DEFAULT_REGION = 'ap-south-1'

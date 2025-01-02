@@ -191,8 +191,10 @@ stage('Compress & Upload Build Artifacts') {
         }
 
         echo "[INFO] Deploying build artifact to server: ${FRONTEND_SERVER}"
+
         withCredentials([sshUserPrivateKey(credentialsId: "${env.CREDENTIALS_ID}", keyFileVariable: 'SSH_KEY_PATH')]) {
             sh '''
+                # SSH into the server and perform deployment steps dynamically based on the environment
                 ssh -i ${SSH_KEY_PATH} ubuntu@${FRONTEND_SERVER} << EOF
                 echo "[INFO] Stopping Apache server."
                 sudo service apache2 stop || exit 1
@@ -202,12 +204,16 @@ stage('Compress & Upload Build Artifacts') {
                 aws s3 cp s3://pinga-builds/${DIST_FILE} . || exit 1
                 echo "[INFO] Build artifact downloaded successfully."
 
-                if [ -d /var/www/html/pinga ]; then
-                    echo "[INFO] Backing up existing deployment."
-                    sudo mv /var/www/html/pinga /var/www/html/pinga-backup-${BUILD_DATE} || exit 1
-                    echo "[INFO] Backup of existing deployment completed."
+                # Backup existing deployment (only for prod environments)
+                if [ "${params.ENVIRONMENT}" == "prod" ]; then
+                    if [ -d /var/www/html/pinga ]; then
+                        echo "[INFO] Backing up existing deployment."
+                        sudo mv /var/www/html/pinga /var/www/html/pinga-backup-${BUILD_DATE} || exit 1
+                        echo "[INFO] Backup of existing deployment completed."
+                    fi
                 fi
 
+                # Deploy the new build
                 echo "[INFO] Deploying new build to web server."
                 mkdir -p /tmp/${ENVIRONMENT}-dist || exit 1
                 tar -xvf ${DIST_FILE} -C /tmp/${ENVIRONMENT}-dist || exit 1
@@ -223,6 +229,7 @@ stage('Compress & Upload Build Artifacts') {
         }
     }
 }
+
 
 
 

@@ -241,28 +241,38 @@ stage('Compress & Upload Build Artifacts') {
     }
 
     post {
-        success {
-            echo "[INFO] Pipeline executed successfully."
-        }
-        failure {
-            echo "[ERROR] Pipeline failed. Initiating rollback."
+    success {
+        echo "[INFO] Pipeline executed successfully."
+    }
+    failure {
+        echo "[ERROR] Pipeline failed. Initiating rollback."
+        withCredentials([sshUserPrivateKey(credentialsId: "${env.CREDENTIALS_ID}", keyFileVariable: 'SSH_KEY_PATH')]) {
             sh '''
-                sudo -u jenkins ssh -i /home/ubuntu/vkey.pem ubuntu@${FRONTEND_SERVER} << EOF
-                if [ -d /var/www/html/pinga-backup-${BUILD_DATE} ]; then
-                    echo "[INFO] Restoring previous deployment."
-                    sudo rm -rf /var/www/html/pinga || exit 1
-                    sudo mv /var/www/html/pinga-backup-${BUILD_DATE} /var/www/html/pinga || exit 1
-                    sudo chown -R www-data:www-data /var/www/html/pinga || exit 1
-                    echo "[INFO] Rollback to previous deployment completed."
-
-                    echo "[INFO] Restarting Apache server."
-                    sudo service apache2 start || exit 1
-                    echo "[INFO] Apache server restarted."
-                else
-                    echo "[ERROR] No backup found for rollback. Manual intervention required."; exit 1
+                ssh -i ${SSH_KEY_PATH} ubuntu@${FRONTEND_SERVER} << EOF
+                # Stop Apache server before rollback
+                echo "[INFO] Stopping Apache server for rollback."
+                sudo service apache2 stop || { echo "[ERROR] Failed to stop Apache server."; exit 1; }
+                
+                # Check for backup directory existence
+                if [ ! -d /var/www/html/pinga-backup-${BUILD_DATE} ]; then
+                    echo "[ERROR] Backup not found. Rollback aborted. Manual intervention required."
+                    exit 1
                 fi
+
+                # Perform rollback
+                echo "[INFO] Rolling back to previous deployment."
+                sudo rm -rf /var/www/html/pinga || { echo "[ERROR] Failed to remove current deployment."; exit 1; }
+                sudo mv /var/www/html/pinga-backup-${BUILD_DATE} /var/www/html/pinga || { echo "[ERROR] Failed to restore backup."; exit 1; }
+                sudo chown -R www-data:www-data /var/www/html/pinga || { echo "[ERROR] Failed to set permissions on restored files."; exit 1; }
+
+                # Restart Apache server
+                echo "[INFO] Restarting Apache server after rollback."
+                sudo service apache2 start || { echo "[ERROR] Failed to start Apache server."; exit 1; }
+
+                echo "[INFO] Rollback completed successfully."
                 EOF
             '''
         }
     }
 }
+

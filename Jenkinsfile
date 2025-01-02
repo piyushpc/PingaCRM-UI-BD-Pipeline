@@ -142,25 +142,38 @@ pipeline {
 
 stage('Compress & Upload Build Artifacts') {
     steps {
-        dir('/home/ubuntu/pinga/trunk') {
+        dir("${env.BUILD_DIR}/pinga/trunk") {
             echo "[INFO] Compressing and uploading build artifacts..."
-            sh '''
-                # Compress artifacts
-                sudo tar -czvf "${BUILD_DIR}/${DIST_FILE}" dist || exit 1
-                echo "[INFO] Build artifacts compressed into ${BUILD_DIR}/${DIST_FILE}."
-            '''
-            sh '''
-                # Upload to S3
-                if ! aws s3 cp "${BUILD_DIR}/${DIST_FILE}" s3://pinga-builds/; then
-                  echo "[ERROR] Failed to upload to S3. Exiting."
+
+            script {
+                // Dynamic variables for tar file name and path
+                def ENVIRONMENT = params.ENVIRONMENT
+                def DATE = new Date().format("ddMMMyyyy")
+                def DIST_FILE = "dist-${ENVIRONMENT}-${DATE}-new.tar.gz"
+                def TAR_PATH = "${env.BUILD_DIR}/${DIST_FILE}"
+
+                // Compress artifacts
+                sh """
+                echo "[INFO] Compressing build artifacts into: ${TAR_PATH}."
+                sudo tar -czvf "${TAR_PATH}" dist || exit 1
+                echo "[INFO] Build artifacts compressed successfully into ${TAR_PATH}."
+                """
+
+                // Upload to S3
+                sh """
+                echo "[INFO] Uploading ${TAR_PATH} to S3 bucket."
+                if ! aws s3 cp "${TAR_PATH}" s3://pinga-builds/; then
+                  echo "[ERROR] Failed to upload ${TAR_PATH} to S3. Exiting."
                   exit 1
                 else
                   echo "[INFO] Build artifact uploaded successfully to s3://pinga-builds/${DIST_FILE}."
                 fi
-            '''
+                """
+            }
         }
     }
 }
+
      
         stage('Deploy to Server') {
             steps {

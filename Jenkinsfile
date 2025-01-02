@@ -174,7 +174,7 @@ stage('Compress & Upload Build Artifacts') {
     }
 }
 
-         echo "[INFO] DIST_FILE=${env.DIST_FILE}, FRONTEND_SERVER=${env.FRONTEND_SERVER}, CREDENTIALS_ID=${env.CREDENTIALS_ID}"
+         //echo "[INFO] DIST_FILE=${env.DIST_FILE}, FRONTEND_SERVER=${env.FRONTEND_SERVER}, CREDENTIALS_ID=${env.CREDENTIALS_ID}"
      
         stage('Deploy to Server') {
     steps {

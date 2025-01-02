@@ -143,7 +143,7 @@ pipeline {
         script {
             // Compress artifacts
             sh '''
-            sudo tar -czvf ${BUILD_DIR}/${DIST_FILE} dist || exit 1
+            sudo tar -czvf "${BUILD_DIR}/${DIST_FILE}" dist || exit 1
             echo "[INFO] Build artifacts compressed into ${BUILD_DIR}/${DIST_FILE}."
             '''
 
@@ -159,6 +159,8 @@ pipeline {
         }
     }
 }
+
+
 
         }
     }

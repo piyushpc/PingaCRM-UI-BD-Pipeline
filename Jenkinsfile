@@ -195,7 +195,7 @@ stage('Compress & Upload Build Artifacts') {
         withCredentials([sshUserPrivateKey(credentialsId: "${env.CREDENTIALS_ID}", keyFileVariable: 'home/ubuntu/vkey.pem')]) {
             sh '''
                 # SSH into the server and perform deployment steps dynamically based on the environment
-                ssh -i ${SSH_KEY_PATH} ubuntu@${FRONTEND_SERVER} << EOF
+                ssh -i ${/home/ubuntu/vkey.pem} ubuntu@${FRONTEND_SERVER} << EOF
                 echo "[INFO] Stopping Apache server."
                 sudo service apache2 stop || exit 1
                 echo "[INFO] Apache server stopped."
@@ -261,6 +261,11 @@ stage('Compress & Upload Build Artifacts') {
                     echo "[ERROR] Backup not found. Rollback aborted. Manual intervention required."
                     exit 1
                 fi
+
+                script {
+    echo "[DEBUG] CREDENTIALS_ID=${env.CREDENTIALS_ID}"
+}
+
 
                 # Perform rollback
                 echo "[INFO] Rolling back to previous deployment."

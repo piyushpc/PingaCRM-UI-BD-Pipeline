@@ -123,8 +123,8 @@ pipeline {
             echo "[INFO] Installing dependencies and preparing build."
             sh '''
                 # Clean up any previous dependencies and lock files
-            #    rm -rf node_modules package-lock.json
-             #   echo "[INFO] Removed existing dependencies."
+                rm -rf node_modules package-lock.json
+                echo "[INFO] Removed existing dependencies."
                 
                 # Install dependencies with legacy peer dependencies to avoid version conflicts
                 npm install --legacy-peer-deps || exit 1
@@ -136,7 +136,7 @@ pipeline {
                 npm audit fix --force || echo "Force audit fix failed (some breaking changes may remain)."
                 
                 # Run the build process
-           #     npm run build || exit 1
+                npm run build || exit 1
                 echo "[INFO] Build process completed successfully."
             '''
         }

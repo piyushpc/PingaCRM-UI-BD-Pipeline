@@ -123,8 +123,8 @@ pipeline {
             echo "[INFO] Installing dependencies and preparing build."
             sh '''
                 # Clean up any previous dependencies and lock files
-                rm -rf node_modules package-lock.json
-                echo "[INFO] Removed existing dependencies."
+            #    rm -rf node_modules package-lock.json
+             #   echo "[INFO] Removed existing dependencies."
                 
                 # Install dependencies with legacy peer dependencies to avoid version conflicts
                 npm install --legacy-peer-deps || exit 1

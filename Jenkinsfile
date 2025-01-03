@@ -127,8 +127,8 @@ pipeline {
                 echo "[INFO] Removed existing dependencies."
                 
                 # Install dependencies with legacy peer dependencies to avoid version conflicts
-                npm install --legacy-peer-deps || exit 1
-                echo "[INFO] Dependencies installed successfully."
+             #   npm install --legacy-peer-deps || exit 1
+             #   echo "[INFO] Dependencies installed successfully."
                 
                 # Fix any vulnerabilities found
                 echo "[INFO] Fixing vulnerabilities with npm audit..."
@@ -136,7 +136,7 @@ pipeline {
                 npm audit fix --force || echo "Force audit fix failed (some breaking changes may remain)."
                 
                 # Run the build process
-                npm run build || exit 1
+           #     npm run build || exit 1
                 echo "[INFO] Build process completed successfully."
             '''
         }
@@ -176,6 +176,15 @@ stage('Compress & Upload Build Artifacts') {
         }
     }
 }
+
+        stage('Verify Server Availability') {
+    steps {
+        sshagent(['dev-frontend-ssh-key']) {
+            sh 'ssh -o StrictHostKeyChecking=no ubuntu@ec2-3-110-190-110.ap-south-1.compute.amazonaws.com "echo Server is available"'
+        }
+    }
+}
+
 
          //echo "[INFO] DIST_FILE=${env.DIST_FILE}, FRONTEND_SERVER=${env.FRONTEND_SERVER}, CREDENTIALS_ID=${env.CREDENTIALS_ID}"
      

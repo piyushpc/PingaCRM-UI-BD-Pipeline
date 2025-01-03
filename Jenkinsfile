@@ -127,8 +127,8 @@ pipeline {
                 echo "[INFO] Removed existing dependencies."
                 
                 # Install dependencies with legacy peer dependencies to avoid version conflicts
-             #   npm install --legacy-peer-deps || exit 1
-             #   echo "[INFO] Dependencies installed successfully."
+                npm install --legacy-peer-deps || exit 1
+                echo "[INFO] Dependencies installed successfully."
                 
                 # Fix any vulnerabilities found
                 echo "[INFO] Fixing vulnerabilities with npm audit..."

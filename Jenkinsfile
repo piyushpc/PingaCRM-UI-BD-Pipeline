@@ -9,7 +9,7 @@ pipeline {
         BUILD_DIR = "/home/ubuntu"
         DIST_FILE = ''
         //FRONTEND_SERVER = ''
-         FRONTEND_SERVER = 'ssh -i "/home/ubutnu/vkey.pem" ubuntu@ec2-3-110-190-110.ap-south-1.compute.amazonaws.com'  // Set this to your actual frontend server address
+         FRONTEND_SERVER = 'ssh -i "/home/ubuntu/vkey.pem" ubuntu@ec2-3-110-190-110.ap-south-1.compute.amazonaws.com'  // Set this to your actual frontend server address
         CREDENTIALS_ID = ''
        // NODE_OPTIONS = '--max_old_space_size=4096'  // Increase Node.js memory limit if needed
     }

@@ -186,25 +186,15 @@ stage('Compress & Upload Build Artifacts') {
 }
 
 
-         //echo "[INFO] DIST_FILE=${env.DIST_FILE}, FRONTEND_SERVER=${env.FRONTEND_SERVER}, CREDENTIALS_ID=${env.CREDENTIALS_ID}"
-     
-        stage('Deploy to Server') {
+         stage('Deploy to Server') {
     steps {
-        echo "[INFO] Verifying frontend server availability: ${FRONTEND_SERVER}"
-
-        // Check if the frontend server is reachable using SSH
-        withCredentials([sshUserPrivateKey(credentialsId: "${env.CREDENTIALS_ID}", keyFileVariable: 'SSH_KEY_PATH')]) {
-    sh """
-        ssh -i ${SSH_KEY_PATH} ubuntu@${FRONTEND_SERVER} 'exit'
-    """
-}
-
         echo "[INFO] Deploying build artifact to server: ${FRONTEND_SERVER}"
 
-        withCredentials([sshUserPrivateKey(credentialsId: "${env.CREDENTIALS_ID}", keyFileVariable: 'home/ubuntu/vkey.pem')]) {
+        // Using credentials to SSH into the frontend server and perform deployment steps
+        withCredentials([sshUserPrivateKey(credentialsId: "${env.CREDENTIALS_ID}", keyFileVariable: 'SSH_KEY_PATH')]) {
             sh '''
                 # SSH into the server and perform deployment steps dynamically based on the environment
-                ssh -i ${/home/ubuntu/vkey.pem} ubuntu@${FRONTEND_SERVER} << EOF
+                ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${FRONTEND_SERVER} << EOF
                 echo "[INFO] Stopping Apache server."
                 sudo service apache2 stop || exit 1
                 echo "[INFO] Apache server stopped."
@@ -238,6 +228,7 @@ stage('Compress & Upload Build Artifacts') {
         }
     }
 }
+
         stage('Post-Deployment Verification') {
             steps {
                 script {

@@ -185,13 +185,14 @@ stage('Compress & Upload Build Artifacts') {
     }
 }
 
-        echo "[DEBUG] ENVIRONMENT=${params.ENVIRONMENT}, CREDENTIALS_ID=${env.CREDENTIALS_ID}"
+        
 
 
 
          stage('Deploy to Server') {
     steps {
         echo "[INFO] Deploying build artifact to server: ${FRONTEND_SERVER}"
+        echo "[DEBUG] ENVIRONMENT=${params.ENVIRONMENT}, CREDENTIALS_ID=${env.CREDENTIALS_ID}"
 
         // Using credentials to SSH into the frontend server and perform deployment steps
         withCredentials([sshUserPrivateKey(credentialsId: "${env.CREDENTIALS_ID}", keyFileVariable: 'SSH_KEY_PATH')]) {

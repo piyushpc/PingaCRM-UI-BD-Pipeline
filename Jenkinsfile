@@ -144,7 +144,7 @@ pipeline {
             }
         }
 
-        //stages {
+        stages {
             stage('Stop Apache') {
             steps {
                 sshagent(credentials: [env.CREDENTIALS_ID]) {

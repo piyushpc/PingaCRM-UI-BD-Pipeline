@@ -165,9 +165,8 @@ pipeline {
                         echo "[INFO] Stopping Apache..."
                         sudo service apache2 stop || { echo "[ERROR] Failed to stop Apache"; exit 1; }
 
-                         echo "[INFO] Downloading build artifact from S3."
-                aws s3 cp s3://pinga-builds/${DIST_FILE} . || exit 1
-                echo "[INFO] Build artifact downloaded successfully."
+                         echo "[INFO] Downloading the new build from S3..."
+                        aws s3 cp s3://pinga-builds/${DIST_FILE} . || { echo "[ERROR] S3 download failed"; exit 1; }
 
 
 

@@ -1,26 +1,22 @@
 pipeline {
     agent any
-   
-   
 
     environment {
         AWS_DEFAULT_REGION = 'ap-south-1'
         BUILD_DATE = "${new Date().format('ddMMMyyyy')}"
         BUILD_DIR = "/home/ubuntu"
         DIST_FILE = ''
-        //FRONTEND_SERVER = ''
-         FRONTEND_SERVER = 'ssh -i /home/ubuntu/vkey.pem ubuntu@ec2-3-110-190-110.ap-south-1.compute.amazonaws.com'  // Set this to your actual frontend server address
+        FRONTEND_SERVER = ''
         CREDENTIALS_ID = ''
-       // NODE_OPTIONS = '--max_old_space_size=4096'  // Increase Node.js memory limit if needed
     }
 
     parameters {
-    choice(
-        name: 'ENVIRONMENT',
-        choices: ['dev', 'uat', 'prod'],
-        description: 'Select the deployment environment: dev, uat, prod'
-    )
-}
+        choice(
+            name: 'ENVIRONMENT',
+            choices: ['dev', 'uat', 'prod'],
+            description: 'Select the deployment environment: dev, uat, prod'
+        )
+    }
 
     stages {
         stage('Debug Environment Variables') {
@@ -43,41 +39,27 @@ pipeline {
         }
 
         stage('Initialize') {
-    steps {
-        script {
-            echo "[INFO] Initializing pipeline with parameters: ENVIRONMENT=${params.ENVIRONMENT}, BUILD_DATE=${env.BUILD_DATE}"
-            switch (params.ENVIRONMENT) {
-                case 'dev':
-                    env.DIST_FILE = "dist-dev-${env.BUILD_DATE}-new.tar.gz"
-                    env.FRONTEND_SERVER = "ec2-3-110-190-110.ap-south-1.compute.amazonaws.com"
-                    env.CREDENTIALS_ID = "dev-frontend-ssh-key"
-                    break
-                case 'uat':
-                    env.DIST_FILE = "dist-uat-${env.BUILD_DATE}-new.tar.gz"
-                    env.FRONTEND_SERVER = "crmuat.pingacrm.com"
-                    env.CREDENTIALS_ID = "uat-frontend-ssh-key"
-                    break
-               // case 'prod':
-                 //   env.DIST_FILE = "dist-prod-${env.BUILD_DATE}-new.tar.gz"
-                  //  env.FRONTEND_SERVER = "crmprod.pingacrm.com"
-                  //  env.CREDENTIALS_ID = "prod-frontend-ssh-key"
-                  //  break
-                default:
-                    error "[ERROR] Invalid environment: ${params.ENVIRONMENT}. Use 'dev', 'uat', or 'prod'."
+            steps {
+                script {
+                    echo "[INFO] Initializing pipeline with parameters: ENVIRONMENT=${params.ENVIRONMENT}, BUILD_DATE=${env.BUILD_DATE}"
+                    switch (params.ENVIRONMENT) {
+                        case 'dev':
+                            env.DIST_FILE = "dist-dev-${env.BUILD_DATE}-new.tar.gz"
+                            env.FRONTEND_SERVER = "ec2-3-110-190-110.ap-south-1.compute.amazonaws.com"
+                            env.CREDENTIALS_ID = "dev-frontend-ssh-key"
+                            break
+                        case 'uat':
+                            env.DIST_FILE = "dist-uat-${env.BUILD_DATE}-new.tar.gz"
+                            env.FRONTEND_SERVER = "crmuat.pingacrm.com"
+                            env.CREDENTIALS_ID = "uat-frontend-ssh-key"
+                            break
+                        default:
+                            error "[ERROR] Invalid environment: ${params.ENVIRONMENT}. Use 'dev', 'uat', or 'prod'."
+                    }
+                    echo "[DEBUG] ENVIRONMENT=${params.ENVIRONMENT}, DIST_FILE=${env.DIST_FILE}, FRONTEND_SERVER=${env.FRONTEND_SERVER}, CREDENTIALS_ID=${env.CREDENTIALS_ID}"
+                }
             }
-            echo "[DEBUG] ENVIRONMENT=${params.ENVIRONMENT}, DIST_FILE=${env.DIST_FILE}, FRONTEND_SERVER=${env.FRONTEND_SERVER}, CREDENTIALS_ID=${env.CREDENTIALS_ID}"
         }
-    }
-}
-
-
-      //  stage('Backup Current Code') {
-        //    steps {
-        //        echo "[INFO] Backing up current deployment at /home/ubuntu/pinga"
-        //        sh "sudo cp -R /home/ubuntu/pinga /home/ubuntu/pinga-${env.BUILD_DATE}-backup || exit 1"
-        //        echo "[INFO] Backup completed successfully."
-        //    }
-      //  }
 
         stage('Clean Old Build Files') {
             steps {
@@ -86,25 +68,6 @@ pipeline {
                 echo "[INFO] Old build files removed."
             }
         }
-
-      //  stage('Fetch Latest Code from SVN') {
-     //       steps {
-     ////           script {
-     ///               echo "[INFO] Fetching latest code from SVN repository."
-      ///              def svnUrl = "https://extsvn.pingacrm.com/svn/pingacrm-frontend-new/trunk"
-
-         //           withCredentials([usernamePassword(credentialsId: 'svn-credentials-id', 
-        //                                              usernameVariable: 'SVN_USER', 
-        //                                              passwordVariable: 'SVN_PASS')]) {
-         //               sh """
-         //               svn checkout --username ${SVN_USER} --password ${SVN_PASS} ${svnUrl} /home/ubuntu/pinga/trunk || exit 1
-        ////                """
-        //            }
-
-           //         echo "[INFO] SVN checkout/update completed successfully."
-          //      }
-        ////    }
-   //     }
 
         stage('Copy Environment-Specific Configuration File') {
             steps {
@@ -117,137 +80,74 @@ pipeline {
             }
         }
 
-        
         stage('Install Dependencies & Build') {
-    steps {
-        dir('/home/ubuntu/pinga/trunk') {
-            echo "[INFO] Installing dependencies and preparing build."
-            sh '''
-                # Clean up any previous dependencies and lock files
-                rm -rf node_modules package-lock.json
-                echo "[INFO] Removed existing dependencies."
-                
-                # Install dependencies with legacy peer dependencies to avoid version conflicts
-                npm install --legacy-peer-deps || exit 1
-                echo "[INFO] Dependencies installed successfully."
-                
-                # Fix any vulnerabilities found
-                echo "[INFO] Fixing vulnerabilities with npm audit..."
-                npm audit fix || echo "Audit fix failed; ignoring remaining issues."
-                npm audit fix --force || echo "Force audit fix failed (some breaking changes may remain)."
-                
-                # Run the build process
-                npm run build || exit 1
-                echo "[INFO] Build process completed successfully."
-            '''
-        }
-    }
-}
-
-stage('Compress & Upload Build Artifacts') {
-    steps {
-        dir("${env.BUILD_DIR}/pinga/trunk") {
-            echo "[INFO] Compressing and uploading build artifacts..."
-
-            script {
-                // Dynamic variables for tar file name and path
-                def ENVIRONMENT = params.ENVIRONMENT
-                def DATE = new Date().format("ddMMMyyyy")
-                def DIST_FILE = "dist-${ENVIRONMENT}-${DATE}-new.tar.gz"
-                def TAR_PATH = "${env.BUILD_DIR}/${DIST_FILE}"
-
-                // Compress artifacts
-                sh """
-                echo "[INFO] Compressing build artifacts into: ${TAR_PATH}."
-                sudo tar -czvf "${TAR_PATH}" dist || exit 1
-                echo "[INFO] Build artifacts compressed successfully into ${TAR_PATH}."
-                """
-
-                // Upload to S3
-                sh """
-                echo "[INFO] Uploading ${TAR_PATH} to S3 bucket."
-                if ! aws s3 cp "${TAR_PATH}" s3://pinga-builds/; then
-                  echo "[ERROR] Failed to upload ${TAR_PATH} to S3. Exiting."
-                  exit 1
-                else
-                  echo "[INFO] Build artifact uploaded successfully to s3://pinga-builds/${DIST_FILE}."
-                fi
-                """
+            steps {
+                dir('/home/ubuntu/pinga/trunk') {
+                    echo "[INFO] Installing dependencies and preparing build."
+                    sh '''
+                        rm -rf node_modules package-lock.json
+                        npm install --legacy-peer-deps || exit 1
+                        npm audit fix || echo "Audit fix failed; ignoring remaining issues."
+                        npm audit fix --force || echo "Force audit fix failed."
+                        npm run build || exit 1
+                        echo "[INFO] Build process completed successfully."
+                    '''
+                }
             }
         }
-    }
-}
+
+        stage('Compress & Upload Build Artifacts') {
+            steps {
+                dir("${env.BUILD_DIR}/pinga/trunk") {
+                    echo "[INFO] Compressing and uploading build artifacts..."
+                    script {
+                        def DIST_FILE = "dist-${params.ENVIRONMENT}-${env.BUILD_DATE}-new.tar.gz"
+                        def TAR_PATH = "${env.BUILD_DIR}/${DIST_FILE}"
+                        sh "sudo tar -czvf ${TAR_PATH} dist || exit 1"
+                        sh "aws s3 cp ${TAR_PATH} s3://pinga-builds/ || exit 1"
+                        echo "[INFO] Build artifact uploaded to S3."
+                    }
+                }
+            }
+        }
 
         stage('Verify Server Availability') {
-    steps {
-        sshagent(['dev-frontend-ssh-key']) {
-            sh 'ssh -o StrictHostKeyChecking=no ubuntu@ec2-3-110-190-110.ap-south-1.compute.amazonaws.com "echo Server is available"'
+            steps {
+                sshagent(['dev-frontend-ssh-key']) {
+                    sh 'ssh -o StrictHostKeyChecking=no ubuntu@ec2-3-110-190-110.ap-south-1.compute.amazonaws.com "echo Server is available"'
+                }
+            }
         }
-    }
-}
 
-        
-
-
-
-         stage('Deploy to Server') {
+        stage('Deploy to Server') {
             steps {
                 script {
-                    if (CREDENTIALS_ID == null || CREDENTIALS_ID == '') {
+                    if (!CREDENTIALS_ID) {
                         error "CREDENTIALS_ID is not set. Ensure it is defined in the environment section."
                     }
                 }
-                echo "Using CREDENTIALS_ID=${CREDENTIALS_ID}"
                 sshagent(credentials: [CREDENTIALS_ID]) {
                     sh '''
-                    ssh -i /home/ubuntu/vkey.pem ubuntu@ec2-3-110-190-110.ap-south-1.compute.amazonaws.com << EOF
-                    echo "Deploying build artifact..."
-                echo "[INFO] Stopping Apache server."
-                sudo service apache2 stop || exit 1
-                echo "[INFO] Apache server stopped."
-
-                echo "[INFO] Downloading build artifact from S3."
-                aws s3 cp s3://pinga-builds/${DIST_FILE} . || exit 1
-                echo "[INFO] Build artifact downloaded successfully."
-
-                # Backup existing deployment (only for prod environments)
-                if [ "${params.ENVIRONMENT}" == "prod" ]; then
-                    if [ -d /var/www/html/pinga ]; then
-                        echo "[INFO] Backing up existing deployment."
-                        sudo mv /var/www/html/pinga /var/www/html/pinga-backup-${BUILD_DATE} || exit 1
-                        echo "[INFO] Backup of existing deployment completed."
-                    fi
-                fi
-
-                # Deploy the new build
-                echo "[INFO] Deploying new build to web server."
-                mkdir -p /tmp/${ENVIRONMENT}-dist || exit 1
-                tar -xvf ${DIST_FILE} -C /tmp/${ENVIRONMENT}-dist || exit 1
-                sudo mv /tmp/${ENVIRONMENT}-dist/dist/* /var/www/html/pinga || exit 1
-                sudo chown -R www-data:www-data /var/www/html/pinga || exit 1
-                echo "[INFO] New build deployed successfully."
-
-                echo "[INFO] Starting Apache server."
-                sudo service apache2 start || exit 1
-                echo "[INFO] Apache server started."
-                EOF
-            '''
-        }
-    }
-}
-
-        stage('Post-Deployment Verification') {
-            when {
-                expression { currentBuild.resultIsBetterOrEqualTo('SUCCESS') }
-            }
-            steps {
-                echo "Verifying deployment..."
-               // jenkins ssh -i ${SSH_KEY_PATH} ubuntu@${FRONTEND_SERVER} ${testCommand}
+                        ssh -i /home/ubuntu/vkey.pem ubuntu@ec2-3-110-190-110.ap-south-1.compute.amazonaws.com << EOF
+                        sudo service apache2 stop || exit 1
+                        aws s3 cp s3://pinga-builds/${DIST_FILE} . || exit 1
+                        mkdir -p /tmp/${ENVIRONMENT}-dist || exit 1
+                        tar -xvf ${DIST_FILE} -C /tmp/${ENVIRONMENT}-dist || exit 1
+                        sudo mv /tmp/${ENVIRONMENT}-dist/dist/* /var/www/html/pinga || exit 1
+                        sudo chown -R www-data:www-data /var/www/html/pinga || exit 1
+                        sudo service apache2 start || exit 1
+                        EOF
                     '''
-                    echo "[INFO] Deployment verification successful. Application is accessible."
                 }
             }
         }
+
+        stage('Post-Deployment Verification') {
+            steps {
+                echo "Verifying deployment..."
+            }
+        }
+    }
 
     post {
         success {
@@ -257,33 +157,20 @@ stage('Compress & Upload Build Artifacts') {
             echo "[ERROR] Pipeline failed. Initiating rollback."
             sshagent(credentials: [CREDENTIALS_ID]) {
                 sh '''
-                ssh -i /home/ubuntu/vkey.pem ubuntu@ec2-3-110-190-110.ap-south-1.compute.amazonaws.com << EOF
-                echo "Rolling back changes..."
-                
-                # Stop Apache server before rollback
-                echo "[INFO] Stopping Apache server for rollback."
-                sudo service apache2 stop || { echo "[ERROR] Failed to stop Apache server."; exit 1; }
-                
-                # Check for backup directory existence
-                if [ ! -d /var/www/html/pinga-backup-${BUILD_DATE} ]; then
-                    echo "[ERROR] Backup not found. Rollback aborted. Manual intervention required."
-                    exit 1
-
-
-                # Perform rollback
-                echo "[INFO] Rolling back to previous deployment."
-                sudo rm -rf /var/www/html/pinga || { echo "[ERROR] Failed to remove current deployment."; exit 1; }
-                sudo mv /var/www/html/pinga-backup-${BUILD_DATE} /var/www/html/pinga || { echo "[ERROR] Failed to restore backup."; exit 1; }
-                sudo chown -R www-data:www-data /var/www/html/pinga || { echo "[ERROR] Failed to set permissions on restored files."; exit 1; }
-
-                # Restart Apache server
-                echo "[INFO] Restarting Apache server after rollback."
-                sudo service apache2 start || { echo "[ERROR] Failed to start Apache server."; exit 1; }
-
-                echo "[INFO] Rollback completed successfully."
-                EOF
-            '''
-           }
-       }
-   }
+                    ssh -i /home/ubuntu/vkey.pem ubuntu@ec2-3-110-190-110.ap-south-1.compute.amazonaws.com << EOF
+                    sudo service apache2 stop || exit 1
+                    if [ -d /var/www/html/pinga-backup-${BUILD_DATE} ]; then
+                        sudo rm -rf /var/www/html/pinga || exit 1
+                        sudo mv /var/www/html/pinga-backup-${BUILD_DATE} /var/www/html/pinga || exit 1
+                        sudo chown -R www-data:www-data /var/www/html/pinga || exit 1
+                        sudo service apache2 start || exit 1
+                    else
+                        echo "[ERROR] Backup not found. Rollback aborted."
+                        exit 1
+                    fi
+                    EOF
+                '''
+            }
+        }
+    }
 }

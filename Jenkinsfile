@@ -148,14 +148,15 @@ pipeline {
     steps {
         sshagent(credentials: [env.CREDENTIALS_ID]) {
             sh """
-                ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} <<'EOF'
-                    echo "[INFO] Stopping Apache..."
-                    sudo service apache2 stop || { echo "[ERROR] Failed to stop Apache"; exit 1; }
-                EOF
+                ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
+                    echo '[INFO] Stopping Apache...';
+                    sudo service apache2 stop || { echo '[ERROR] Failed to stop Apache'; exit 1; }
+                "
             """
         }
     }
 }
+
 
         stage('Download Build from S3') {
             steps {
@@ -171,19 +172,20 @@ pipeline {
         }
 
         stage('Backup Old Build') {
-            steps {
-                sshagent(credentials: [env.CREDENTIALS_ID]) {
-                    sh """
-                    ssh -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} <<EOF
-                        echo "[INFO] Renaming old dist directory..."
-                        if [ -d /var/www/html/pinga ]; then
-                            sudo mv /var/www/html/pinga "/var/www/html/pinga-backup-\$(date +%Y%m%d%H%M%S)" || { echo "[ERROR] Backup failed"; exit 1; }
-                        fi
-                    EOF
-                    """
-                }
-            }
+    steps {
+        sshagent(credentials: [env.CREDENTIALS_ID]) {
+            sh """
+                ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
+                    echo '[INFO] Renaming old dist directory...';
+                    if [ -d /var/www/html/pinga ]; then
+                        sudo mv /var/www/html/pinga '/var/www/html/pinga-backup-\$(date +%Y%m%d%H%M%S)' || { echo '[ERROR] Backup failed'; exit 1; }
+                    fi
+                "
+            """
         }
+    }
+}
+
 
         stage('Prepare Deployment') {
             steps {

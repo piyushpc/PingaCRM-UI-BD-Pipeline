@@ -21,7 +21,7 @@ pipeline {
      }
 
     {
-        string(name: 'FRONTEND_SERVER', defaultValue: 'your-server-ip-or-hostname', description: 'Frontend server hostname or IP')
+        string(name: 'FRONTEND_SERVER', defaultValue: 'ec2-3-110-190-110.ap-south-1.compute.amazonaws.com', description: 'Frontend server hostname or IP')
         string(name: 'DIST_FILE', defaultValue: 'dist-dev-latest.tar.gz', description: 'Name of the distribution file')
         string(name: 'ENVIRONMENT', defaultValue: 'dev', description: 'Deployment environment (e.g., dev, staging, prod)')
     }

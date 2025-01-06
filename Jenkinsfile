@@ -166,11 +166,7 @@ pipeline {
                         sudo service apache2 stop || { echo "[ERROR] Failed to stop Apache"; exit 1; }
 
                         echo "[INFO] Downloading new artifact..."
-                aws s3 cp s3://pinga-builds/${env.DIST_FILE} /tmp/${env.DIST_FILE}
-
-                echo "[INFO] Unzipping artifact..."
-                sudo tar -xvf /tmp/${env.DIST_FILE} -C /var/www/html/pinga
-
+                        aws s3 cp s3://pinga-builds/${env.DIST_FILE} /tmp/${env.DIST_FILE}
 
                         echo "[INFO] Renaming old dist directory..."
                         if [ -d /var/www/html/pinga ]; then

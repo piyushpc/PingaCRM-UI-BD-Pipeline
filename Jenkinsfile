@@ -146,17 +146,18 @@ pipeline {
         }
 
         stage('Stop Apache') {
-            steps {
-                sshagent(credentials: [env.CREDENTIALS_ID]) {
-                    sh """
-                    ssh -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} << EOF
-                        echo "[INFO] Stopping Apache..."
-                        sudo service apache2 stop || { echo "[ERROR] Failed to stop Apache"; exit 1; }
-                    EOF
-                    """
-                }
-            }
+    steps {
+        sshagent(credentials: [env.CREDENTIALS_ID]) {
+            sh """
+            ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${FRONTEND_SERVER} << 'EOF'
+                echo "[INFO] Stopping Apache..."
+                sudo service apache2 stop || { echo "[ERROR] Failed to stop Apache"; exit 1; }
+            EOF
+            """
         }
+    }
+}
+
 
         stage('Download Build from S3') {
             steps {

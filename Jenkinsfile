@@ -7,7 +7,7 @@ pipeline {
         BUILD_DATE = sh(script: "date +%Y%m%d%H%M%S", returnStdout: true).trim()
         BUILD_DIR = "/home/ubuntu"
         DIST_FILE = ''
-        FRONTEND_SERVER = ''
+        FRONTEND_SERVER = 'ec2-3-110-190-110.ap-south-1.compute.amazonaws.com'
         CREDENTIALS_ID = 'CREDENTIALS_ID'
     }
     
@@ -21,11 +21,11 @@ pipeline {
         )
      }
 
-    {
-        string(name: 'FRONTEND_SERVER', defaultValue: 'ec2-3-110-190-110.ap-south-1.compute.amazonaws.com', description: 'Frontend server hostname or IP')
+    //{
+       // string(name: 'FRONTEND_SERVER', defaultValue: 'ec2-3-110-190-110.ap-south-1.compute.amazonaws.com', description: 'Frontend server hostname or IP')
         //string(name: 'DIST_FILE', defaultValue: 'dist-dev-latest.tar.gz', description: 'Name of the distribution file')
-        string(name: 'ENVIRONMENT', defaultValue: 'dev', description: 'Deployment environment (e.g., dev, staging, prod)')
-    }
+       // string(name: 'ENVIRONMENT', defaultValue: 'dev', description: 'Deployment environment (e.g., dev, staging, prod)')
+  //  }
 
     stages {
         stage('Debug Environment Variables') {

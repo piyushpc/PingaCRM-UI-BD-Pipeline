@@ -3,12 +3,15 @@ pipeline {
 
     environment {
         AWS_DEFAULT_REGION = 'ap-south-1'
+        //BUILD_DATE = "${new Date().format('ddMMMyyyy')}"
         BUILD_DATE = sh(script: "date +%Y%m%d%H%M%S", returnStdout: true).trim()
         BUILD_DIR = "/home/ubuntu"
-        DIST_FILE = 'dist-${params.ENVIRONMENT}-${env.BUILD_DATE}-new.tar.gz'
+        DIST_FILE = ''
         FRONTEND_SERVER = 'ec2-3-110-190-110.ap-south-1.compute.amazonaws.com'
         CREDENTIALS_ID = 'CREDENTIALS_ID'
     }
+    
+
 
     parameters {
         choice(
@@ -16,7 +19,13 @@ pipeline {
             choices: ['dev', 'uat', 'prod'],
             description: 'Select the deployment environment: dev, uat, prod'
         )
-    }
+     }
+
+    //{
+       // string(name: 'FRONTEND_SERVER', defaultValue: 'ec2-3-110-190-110.ap-south-1.compute.amazonaws.com', description: 'Frontend server hostname or IP')
+        //string(name: 'DIST_FILE', defaultValue: 'dist-dev-latest.tar.gz', description: 'Name of the distribution file')
+       // string(name: 'ENVIRONMENT', defaultValue: 'dev', description: 'Deployment environment (e.g., dev, staging, prod)')
+  //  }
 
     stages {
         stage('Debug Environment Variables') {
@@ -61,26 +70,28 @@ pipeline {
             }
         }
 
-        stage('Backup Current Code') {
-            steps {
-                script {
-                    def backupPath = "/home/ubuntu/pinga-${env.BUILD_DATE}-backup"
-                    echo "[INFO] Backing up current deployment at /home/ubuntu/pinga to ${backupPath}"
-                    sh """
-                        if [ ! -d /home/ubuntu/pinga ]; then
-                            echo "[ERROR] Source directory /home/ubuntu/pinga does not exist!"
-                            exit 1
-                        fi
-                        sudo cp -R /home/ubuntu/pinga ${backupPath}
-                        if [ ! -d ${backupPath} ]; then
-                            echo "[ERROR] Backup failed!"
-                            exit 1
-                        fi
-                    """
-                    echo "[INFO] Backup completed successfully at ${backupPath}."
-                }
-            }
+           stage('Backup Current Code') {
+    steps {
+        script {
+            def backupPath = "/home/ubuntu/pinga-${env.BUILD_DATE}-backup"
+            echo "[INFO] Backing up current deployment at /home/ubuntu/pinga to ${backupPath}"
+            sh """
+                if [ ! -d /home/ubuntu/pinga ]; then
+                    echo "[ERROR] Source directory /home/ubuntu/pinga does not exist!"
+                    exit 1
+                fi
+                sudo cp -R /home/ubuntu/pinga ${backupPath}
+                if [ ! -d ${backupPath} ]; then
+                    echo "[ERROR] Backup failed!"
+                    exit 1
+                fi
+            """
+            echo "[INFO] Backup completed successfully at ${backupPath}."
         }
+    }
+}
+
+
 
         stage('Clean Old Build Files') {
             steps {
@@ -134,16 +145,13 @@ pipeline {
 
         stage('Verify Server Availability') {
             steps {
-                sshagent([CREDENTIALS_ID]) {
-                  
-                   sh 'ssh -o StrictHostKeyChecking=no ubuntu@${env.FRONTEND_SERVER} "echo Server is available"'
-                
-                  
+                sshagent(['dev-frontend-ssh-key']) {
+                    sh 'ssh -o StrictHostKeyChecking=no ubuntu@ec2-3-110-190-110.ap-south-1.compute.amazonaws.com "echo Server is available"'
                 }
             }
         }
 
-        stage('Deploy to Server') {
+stage('Deploy to Server') {
     steps {
         sshagent([CREDENTIALS_ID]) {
             script {
@@ -165,8 +173,9 @@ pipeline {
                         echo "[INFO] Stopping Apache..."
                         sudo service apache2 stop || { echo "[ERROR] Failed to stop Apache"; exit 1; }
 
-                        echo "[INFO] Downloading new artifact..."
-                        aws s3 cp s3://pinga-builds/${env.DIST_FILE} /tmp/${env.DIST_FILE}
+                        echo "[INFO] Downloading the new build from S3..."
+                        aws s3 cp "s3://pinga-builds/\${env.DIST_FILE}" . || { echo "[ERROR] S3 download failed"; exit 1; }
+
 
                         echo "[INFO] Renaming old dist directory..."
                         if [ -d /var/www/html/pinga ]; then
@@ -211,10 +220,10 @@ pipeline {
 
         stage('Post-Deployment Verification') {
             steps {
-        echo "[INFO] Cleaning temporary files..."
-        sh "rm -rf /tmp/${env.DIST_FILE} || exit 0"
-    }
+                echo "Verifying deployment..."
+            }
         }
+    }
 
     post {
         success {
@@ -224,7 +233,7 @@ pipeline {
             echo "[ERROR] Pipeline failed. Initiating rollback."
             sshagent(credentials: [CREDENTIALS_ID]) {
                 sh '''
-                    ssh -i /home/ubuntu/vkey.pem ubuntu@${env.FRONTEND_SERVER} << EOF
+                    ssh -i /home/ubuntu/vkey.pem ubuntu@ec2-3-110-190-110.ap-south-1.compute.amazonaws.com << EOF
                     sudo service apache2 stop || exit 1
                     if [ -d /var/www/html/pinga-backup-${env.BUILD_DATE} ]; then
                         sudo rm -rf /var/www/html/pinga || exit 1

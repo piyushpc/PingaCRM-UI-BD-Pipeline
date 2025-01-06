@@ -215,10 +215,10 @@ pipeline {
 
         stage('Post-Deployment Verification') {
             steps {
-                echo "Verifying deployment..."
-            }
-        }
+        echo "[INFO] Cleaning temporary files..."
+        sh "rm -rf /tmp/${env.DIST_FILE} || exit 0"
     }
+        }
 
     post {
         success {

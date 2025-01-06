@@ -135,7 +135,9 @@ pipeline {
         stage('Verify Server Availability') {
             steps {
                 sshagent([CREDENTIALS_ID]) {
-                  //  sh 'ssh -o StrictHostKeyChecking=no ubuntu@${env.FRONTEND_SERVER} "echo Server is available"'
+                    sh '''
+                    sh 'ssh -o StrictHostKeyChecking=no ubuntu@${env.FRONTEND_SERVER} "echo Server is available"'
+                  '''
                   sh  'ssh -o StrictHostKeyChecking=no ubuntu@ec2-3-110-190-110.ap-south-1.compute.amazonaws.com "echo Server is available"'
 
                 }

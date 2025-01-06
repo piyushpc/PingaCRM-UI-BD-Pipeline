@@ -20,6 +20,12 @@ pipeline {
         )
     }
 
+     parameters {
+        string(name: 'FRONTEND_SERVER', defaultValue: 'your-server-ip-or-hostname', description: 'Frontend server hostname or IP')
+        string(name: 'DIST_FILE', defaultValue: 'dist-dev-latest.tar.gz', description: 'Name of the distribution file')
+        string(name: 'ENVIRONMENT', defaultValue: 'dev', description: 'Deployment environment (e.g., dev, staging, prod)')
+    }
+
     stages {
         stage('Debug Environment Variables') {
             steps {
@@ -147,7 +153,7 @@ pipeline {
                     
                     // Execute deployment on the remote server
                     sh '''
-                        ssh -i /home/ubuntu/vkey.pem ubuntu@${FRONTEND_SERVER} << 'EOF'
+                        sudo -u jenkins ssh -i /home/ubuntu/vkey.pem ubuntu@$FRONTEND_SERVER << EOF
 
                         echo "[INFO] Stopping Apache..."
                         sudo service apache2 stop || { echo "[ERROR] Failed to stop Apache"; exit 1; }

@@ -257,13 +257,6 @@ pipeline {
         }
     }
 }
-
-     catch (Exception e) {
-     echo "[ERROR] Deployment failed: ${e.getMessage()}"
-            currentBuild.result = 'FAILURE'
-                throw e
-                        }
-                    }
                
 
         stage('Finalize') {

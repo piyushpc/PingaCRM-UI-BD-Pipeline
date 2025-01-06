@@ -168,15 +168,13 @@ stage('Deploy to Server') {
 
                     // Execute deployment on the remote server
                     sh """
-                        
-                        ssh -i /home/ubuntu/vkey.pem ubuntu@${env.FRONTEND_SERVER} <<- 'EOF'
+                        sudo -u jenkins ssh -i /home/ubuntu/vkey.pem ubuntu@${env.FRONTEND_SERVER} << EOF
 
                         echo "[INFO] Stopping Apache..."
                         sudo service apache2 stop || { echo "[ERROR] Failed to stop Apache"; exit 1; }
 
                         echo "[INFO] Downloading the new build from S3..."
-                        aws s3 cp "s3://pinga-builds/\${env.DIST_FILE}" . || { echo "[ERROR] S3 download failed"; exit 1; }
-
+                        aws s3 cp s3://pinga-builds/${env.DIST_FILE} . || { echo "[ERROR] S3 download failed"; exit 1; }
 
                         echo "[INFO] Renaming old dist directory..."
                         if [ -d /var/www/html/pinga ]; then
@@ -187,7 +185,7 @@ stage('Deploy to Server') {
                         mkdir -p /tmp/${env.ENVIRONMENT}-dist || { echo "[ERROR] Failed to create /tmp/${env.ENVIRONMENT}-dist"; exit 1; }
 
                         echo "[INFO] Unzipping the new build..."
-                        sudo tar -xvf ${env.DIST_FILE} -C /tmp/${env.ENVIRONMENT}-dist || { echo "[ERROR] Unzipping failed"; exit 1; }
+                        tar -xvf ${env.DIST_FILE} -C /tmp/${env.ENVIRONMENT}-dist || { echo "[ERROR] Unzipping failed"; exit 1; }
 
                         echo "[INFO] Removing old deployment..."
                         sudo rm -rf /var/www/html/pinga || { echo "[ERROR] Failed to remove old deployment"; exit 1; }

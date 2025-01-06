@@ -135,11 +135,10 @@ pipeline {
         stage('Verify Server Availability') {
             steps {
                 sshagent([CREDENTIALS_ID]) {
-                  //  sh '''
-                  //  sh 'ssh -o StrictHostKeyChecking=no ubuntu@${env.FRONTEND_SERVER} "echo Server is available"'
-                //  '''
-                  sh  'ssh -o StrictHostKeyChecking=no ubuntu@ec2-3-110-190-110.ap-south-1.compute.amazonaws.com "echo Server is available"'
-
+                  
+                   sh 'ssh -o StrictHostKeyChecking=no ubuntu@${env.FRONTEND_SERVER} "echo Server is available"'
+                
+                  
                 }
             }
         }
@@ -166,14 +165,11 @@ pipeline {
                         echo "[INFO] Stopping Apache..."
                         sudo service apache2 stop || { echo "[ERROR] Failed to stop Apache"; exit 1; }
 
-                        echo "[INFO] Downloading the new build from S3..."
-                       sh '''
-                       aws s3 cp s3://pinga-builds/${env.DIST_FILE} .
-                    if [ $? -ne 0 ]; then
-                    echo "Error: File download failed"
-                      exit 1
-                      fi
-                      '''
+                         echo "[INFO] Downloading build artifact from S3."
+                aws s3 cp s3://pinga-builds/${DIST_FILE} . || exit 1
+                echo "[INFO] Build artifact downloaded successfully."
+
+
 
 
                         echo "[INFO] Renaming old dist directory..."

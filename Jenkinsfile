@@ -160,7 +160,7 @@ pipeline {
                     
                     // Step 1: Test SSH Connection
                     sh '''
-                        ssh -i /home/ubuntu/vkey.pem ubuntu@${FRONTEND_SERVER} "exit" || {
+                       sudo -u jenkins ssh -i /home/ubuntu/vkey.pem ubuntu@${FRONTEND_SERVER} "exit" || {
                             echo "[ERROR] SSH connection failed. Check your key, permissions, and server accessibility.";
                             exit 1;
                         }

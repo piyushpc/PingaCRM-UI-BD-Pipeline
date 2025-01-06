@@ -3,7 +3,8 @@ pipeline {
 
     environment {
         AWS_DEFAULT_REGION = 'ap-south-1'
-        BUILD_DATE = "${new Date().format('ddMMMyyyy')}"
+        //BUILD_DATE = "${new Date().format('ddMMMyyyy')}"
+        BUILD_DATE = sh(script: "date +%Y%m%d%H%M%S", returnStdout: true).trim()
         BUILD_DIR = "/home/ubuntu"
         DIST_FILE = ''
         FRONTEND_SERVER = ''
@@ -70,12 +71,26 @@ pipeline {
         }
 
            stage('Backup Current Code') {
-            steps {
-                echo "[INFO] Backing up current deployment at /home/ubuntu/pinga"
-                sh "sudo cp -R /home/ubuntu/pinga /home/ubuntu/pinga-${env.BUILD_DATE}-backup || exit 1"
-                echo "[INFO] Backup completed successfully."
-            }
+    steps {
+        script {
+            def backupPath = "/home/ubuntu/pinga-${env.BUILD_DATE}-backup"
+            echo "[INFO] Backing up current deployment at /home/ubuntu/pinga to ${backupPath}"
+            sh """
+                if [ ! -d /home/ubuntu/pinga ]; then
+                    echo "[ERROR] Source directory /home/ubuntu/pinga does not exist!"
+                    exit 1
+                fi
+                sudo cp -R /home/ubuntu/pinga ${backupPath}
+                if [ ! -d ${backupPath} ]; then
+                    echo "[ERROR] Backup failed!"
+                    exit 1
+                fi
+            """
+            echo "[INFO] Backup completed successfully at ${backupPath}."
         }
+    }
+}
+
 
 
         stage('Clean Old Build Files') {

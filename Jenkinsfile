@@ -5,7 +5,7 @@ pipeline {
         AWS_DEFAULT_REGION = 'ap-south-1'
         BUILD_DATE = sh(script: "date +%Y%m%d%H%M%S", returnStdout: true).trim()
         BUILD_DIR = "/home/ubuntu"
-        DIST_FILE = ''
+        DIST_FILE = 'dist-${params.ENVIRONMENT}-${env.BUILD_DATE}-new.tar.gz'
         FRONTEND_SERVER = 'ec2-3-110-190-110.ap-south-1.compute.amazonaws.com'
         CREDENTIALS_ID = 'CREDENTIALS_ID'
     }
@@ -165,21 +165,11 @@ pipeline {
                         echo "[INFO] Stopping Apache..."
                         sudo service apache2 stop || { echo "[ERROR] Failed to stop Apache"; exit 1; }
 
-                         stage('Download Artifact') {
-    steps {
-        script {
-            sh '''
-                aws s3 cp s3://pinga-builds/${DIST_FILE} .
-                if [ $? -ne 0 ]; then
-                    echo "Error: File download failed"
-                    exit 1
-                fi
-            '''
-        }
-    }
-}
+                        echo "[INFO] Downloading new artifact..."
+                aws s3 cp s3://pinga-builds/${env.DIST_FILE} /tmp/${env.DIST_FILE}
 
-
+                echo "[INFO] Unzipping artifact..."
+                sudo tar -xvf /tmp/${env.DIST_FILE} -C /var/www/html/pinga
 
 
                         echo "[INFO] Renaming old dist directory..."

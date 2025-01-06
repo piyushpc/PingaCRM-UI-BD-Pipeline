@@ -288,7 +288,6 @@ EOF
                 }
             }
         }
-    }
 
     post {
         success {

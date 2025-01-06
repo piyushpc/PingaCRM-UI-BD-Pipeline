@@ -156,48 +156,45 @@ pipeline {
         }
     }
 }
-
-
         stage('Download Build from S3') {
             steps {
                 sshagent(credentials: [env.CREDENTIALS_ID]) {
                     sh """
-                    ssh -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} <<EOF
-                        echo "[INFO] Downloading the new build from S3..."
-                        aws s3 cp s3://${S3_BUCKET}/${env.DIST_FILE} . || { echo "[ERROR] S3 download failed"; exit 1; }
-                    EOF
+                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
+                            echo '[INFO] Downloading the new build from S3...';
+                            aws s3 cp s3://${S3_BUCKET}/${env.DIST_FILE} . || { echo '[ERROR] S3 download failed'; exit 1; }
+                        "
                     """
                 }
             }
         }
 
         stage('Backup Old Build') {
-    steps {
-        sshagent(credentials: [env.CREDENTIALS_ID]) {
-            sh """
-                ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
-                    echo '[INFO] Renaming old dist directory...';
-                    if [ -d /var/www/html/pinga ]; then
-                        sudo mv /var/www/html/pinga '/var/www/html/pinga-backup-\$(date +%Y%m%d%H%M%S)' || { echo '[ERROR] Backup failed'; exit 1; }
-                    fi
-                "
-            """
+            steps {
+                sshagent(credentials: [env.CREDENTIALS_ID]) {
+                    sh """
+                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
+                            echo '[INFO] Renaming old dist directory...';
+                            if [ -d /var/www/html/pinga ]; then
+                                sudo mv /var/www/html/pinga '/var/www/html/pinga-backup-${BUILD_DATE}' || { echo '[ERROR] Backup failed'; exit 1; }
+                            fi
+                        "
+                    """
+                }
+            }
         }
-    }
-}
-
 
         stage('Prepare Deployment') {
             steps {
                 sshagent(credentials: [env.CREDENTIALS_ID]) {
                     sh """
-                    ssh -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} <<EOF
-                        echo "[INFO] Ensuring deployment directory exists..."
-                        mkdir -p /tmp/${params.ENVIRONMENT}-dist || { echo "[ERROR] Failed to create /tmp/${params.ENVIRONMENT}-dist"; exit 1; }
+                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
+                            echo '[INFO] Ensuring deployment directory exists...';
+                            mkdir -p /tmp/${params.ENVIRONMENT}-dist || { echo '[ERROR] Failed to create directory'; exit 1; }
 
-                        echo "[INFO] Unzipping the new build..."
-                        tar -xvf ${env.DIST_FILE} -C /tmp/${params.ENVIRONMENT}-dist || { echo "[ERROR] Unzipping failed"; exit 1; }
-                    EOF
+                            echo '[INFO] Unzipping the new build...';
+                            tar -xvf ${env.DIST_FILE} -C /tmp/${params.ENVIRONMENT}-dist || { echo '[ERROR] Unzipping failed'; exit 1; }
+                        "
                     """
                 }
             }
@@ -207,16 +204,16 @@ pipeline {
             steps {
                 sshagent(credentials: [env.CREDENTIALS_ID]) {
                     sh """
-                    ssh -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} <<EOF
-                        echo "[INFO] Removing old deployment..."
-                        sudo rm -rf /var/www/html/pinga || { echo "[ERROR] Failed to remove old deployment"; exit 1; }
+                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
+                            echo '[INFO] Removing old deployment...';
+                            sudo rm -rf /var/www/html/pinga || { echo '[ERROR] Failed to remove old deployment'; exit 1; }
 
-                        echo "[INFO] Deploying new build..."
-                        sudo mv /tmp/${params.ENVIRONMENT}-dist/dist/* /var/www/html/pinga || { echo "[ERROR] Deployment failed"; exit 1; }
+                            echo '[INFO] Deploying new build...';
+                            sudo mv /tmp/${params.ENVIRONMENT}-dist/dist/* /var/www/html/pinga || { echo '[ERROR] Deployment failed'; exit 1; }
 
-                        echo "[INFO] Updating permissions..."
-                        sudo chown -R www-data:www-data /var/www/html/pinga || { echo "[ERROR] Failed to update permissions"; exit 1; }
-                    EOF
+                            echo '[INFO] Updating permissions...';
+                            sudo chown -R www-data:www-data /var/www/html/pinga || { echo '[ERROR] Failed to update permissions'; exit 1; }
+                        "
                     """
                 }
             }
@@ -226,10 +223,10 @@ pipeline {
             steps {
                 sshagent(credentials: [env.CREDENTIALS_ID]) {
                     sh """
-                    ssh -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} <<EOF
-                        echo "[INFO] Starting Apache..."
-                        sudo service apache2 start || { echo "[ERROR] Failed to start Apache"; exit 1; }
-                    EOF
+                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
+                            echo '[INFO] Starting Apache...';
+                            sudo service apache2 start || { echo '[ERROR] Failed to start Apache'; exit 1; }
+                        "
                     """
                 }
             }
@@ -239,10 +236,10 @@ pipeline {
             steps {
                 sshagent(credentials: [env.CREDENTIALS_ID]) {
                     sh """
-                    ssh -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} <<EOF
-                        echo "[INFO] Cleaning up temporary directories..."
-                        sudo rm -rf /tmp/${params.ENVIRONMENT}-dist || { echo "[ERROR] Failed to clean up temporary directories"; exit 1; }
-                    EOF
+                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
+                            echo '[INFO] Cleaning up temporary directories...';
+                            sudo rm -rf /tmp/${params.ENVIRONMENT}-dist || { echo '[ERROR] Failed to clean up temporary directories'; exit 1; }
+                        "
                     """
                 }
             }
@@ -251,7 +248,6 @@ pipeline {
         stage('Finalize') {
             steps {
                 script {
-                    echo "[INFO] Finalizing deployment steps."
                     if (currentBuild.result == 'FAILURE') {
                         echo "[ERROR] Deployment process encountered errors."
                     } else {
@@ -264,21 +260,21 @@ pipeline {
 
     post {
         success {
-            echo "Deployment completed successfully."
+            echo "[INFO] Deployment completed successfully."
         }
         failure {
             echo "[ERROR] Pipeline failed. Initiating rollback."
-            sshagent(credentials: [CREDENTIALS_ID]) {
-                sh '''
-                    ssh -i /home/ubuntu/vkey.pem ubuntu@${env.FRONTEND_SERVER} << EOF
-                    sudo service apache2 stop || exit 1
-                    if [ -d /var/www/html/pinga-backup-${env.BUILD_DATE} ]; then
-                        sudo rm -rf /var/www/html/pinga || exit 1
-                        sudo mv /var/www/html/pinga-backup-${env.BUILD_DATE} /var/www/html/pinga || exit 1
-                    fi
-                    sudo service apache2 start || exit 1
-                    EOF
-                '''
+            sshagent(credentials: [env.CREDENTIALS_ID]) {
+                sh """
+                    ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
+                        sudo service apache2 stop || exit 1;
+                        if [ -d /var/www/html/pinga-backup-${BUILD_DATE} ]; then
+                            sudo rm -rf /var/www/html/pinga || exit 1;
+                            sudo mv /var/www/html/pinga-backup-${BUILD_DATE} /var/www/html/pinga || exit 1;
+                        fi;
+                        sudo service apache2 start || exit 1;
+                    "
+                """
             }
         }
     }

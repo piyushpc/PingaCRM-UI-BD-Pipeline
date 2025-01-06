@@ -18,12 +18,11 @@ pipeline {
             choices: ['dev', 'uat', 'prod'],
             description: 'Select the deployment environment: dev, uat, prod'
         )
-    }
-
-     parameters {
+        {
         string(name: 'FRONTEND_SERVER', defaultValue: 'your-server-ip-or-hostname', description: 'Frontend server hostname or IP')
         string(name: 'DIST_FILE', defaultValue: 'dist-dev-latest.tar.gz', description: 'Name of the distribution file')
         string(name: 'ENVIRONMENT', defaultValue: 'dev', description: 'Deployment environment (e.g., dev, staging, prod)')
+    }
     }
 
     stages {

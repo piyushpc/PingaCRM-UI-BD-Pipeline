@@ -118,26 +118,25 @@ pipeline {
         }
 
         stage('Compress & Upload Build Artifacts') {
-    steps {
-        dir("${env.BUILD_DIR}/pinga/trunk") {
-            echo "[INFO] Compressing and uploading build artifacts..."
-            script {
-                def DIST_FILE = "dist-${params.ENVIRONMENT}-${env.BUILD_DATE}-new.tar.gz"
-                def TAR_PATH = "${env.BUILD_DIR}/${DIST_FILE}"
-                sh "sudo tar -czvf ${TAR_PATH} dist || exit 1"
-                // Fix this part:
-                sh """aws s3 cp s3://pinga-builds/${env.DIST_FILE} . || { echo '[ERROR] S3 download failed'; exit 1; }"""
-                echo "[INFO] Build artifact uploaded to S3."
+            steps {
+                dir("${env.BUILD_DIR}/pinga/trunk") {
+                    echo "[INFO] Compressing and uploading build artifacts..."
+                    script {
+                        def DIST_FILE = "dist-${params.ENVIRONMENT}-${env.BUILD_DATE}-new.tar.gz"
+                        def TAR_PATH = "${env.BUILD_DIR}/${DIST_FILE}"
+                        sh "sudo tar -czvf ${TAR_PATH} dist || exit 1"
+                        // Fix this part:
+                        sh """aws s3 cp ${TAR_PATH} s3://pinga-builds/${env.DIST_FILE} || { echo '[ERROR] S3 upload failed'; exit 1; }"""
+                        echo "[INFO] Build artifact uploaded to S3."
+                    }
+                }
             }
         }
-    }
-}
-
 
         stage('Verify Server Availability') {
             steps {
-                sshagent(['dev-frontend-ssh-key']) {
-                    sh 'ssh -o StrictHostKeyChecking=no ubuntu@ec2-3-110-190-110.ap-south-1.compute.amazonaws.com "echo Server is available"'
+                sshagent([CREDENTIALS_ID]) {
+                    sh 'ssh -o StrictHostKeyChecking=no ubuntu@${env.FRONTEND_SERVER} "echo Server is available"'
                 }
             }
         }
@@ -163,26 +162,24 @@ pipeline {
                                 sudo service apache2 stop || { echo "[ERROR] Failed to stop Apache"; exit 1; }
 
                                 echo "[INFO] Downloading the new build from S3..."
-                                sh """
-    aws s3 cp s3://pinga-builds/\${env.DIST_FILE} . || { echo '[ERROR] S3 download failed'; exit 1; }
-"""
+                                aws s3 cp s3://pinga-builds/\${env.DIST_FILE} . || { echo '[ERROR] S3 download failed'; exit 1; }
 
                                 echo "[INFO] Renaming old dist directory..."
                                 if [ -d /var/www/html/pinga ]; then
                                     sudo mv /var/www/html/pinga "/var/www/html/pinga-backup-$(date +%Y%m%d%H%M%S)" || { echo "[ERROR] Backup failed"; exit 1; }
                                 fi
 
-                                echo "[INFO] Ensuring /tmp/${env.ENVIRONMENT}-dist directory exists..."
-                                mkdir -p /tmp/${env.ENVIRONMENT}-dist || { echo "[ERROR] Failed to create /tmp/${env.ENVIRONMENT}-dist"; exit 1; }
+                                echo "[INFO] Ensuring /tmp/\${env.ENVIRONMENT}-dist directory exists..."
+                                mkdir -p /tmp/\${env.ENVIRONMENT}-dist || { echo "[ERROR] Failed to create /tmp/\${env.ENVIRONMENT}-dist"; exit 1; }
 
                                 echo "[INFO] Unzipping the new build..."
-                                tar -xvf ${env.DIST_FILE} -C /tmp/${env.ENVIRONMENT}-dist || { echo "[ERROR] Unzipping failed"; exit 1; }
+                                tar -xvf \${env.DIST_FILE} -C /tmp/\${env.ENVIRONMENT}-dist || { echo "[ERROR] Unzipping failed"; exit 1; }
 
                                 echo "[INFO] Removing old deployment..."
                                 sudo rm -rf /var/www/html/pinga || { echo "[ERROR] Failed to remove old deployment"; exit 1; }
 
                                 echo "[INFO] Deploying new build..."
-                                sudo mv /tmp/${env.ENVIRONMENT}-dist/dist/* /var/www/html/pinga || { echo "[ERROR] Deployment failed"; exit 1; }
+                                sudo mv /tmp/\${env.ENVIRONMENT}-dist/dist/* /var/www/html/pinga || { echo "[ERROR] Deployment failed"; exit 1; }
 
                                 echo "[INFO] Updating permissions..."
                                 sudo chown -R www-data:www-data /var/www/html/pinga || { echo "[ERROR] Failed to update permissions"; exit 1; }
@@ -191,7 +188,7 @@ pipeline {
                                 sudo service apache2 start || { echo "[ERROR] Failed to start Apache"; exit 1; }
 
                                 echo "[INFO] Cleaning up temporary directories..."
-                                sudo rm -rf /tmp/${env.ENVIRONMENT}-dist || { echo "[ERROR] Failed to clean up temporary directories"; exit 1; }
+                                sudo rm -rf /tmp/\${env.ENVIRONMENT}-dist || { echo "[ERROR] Failed to clean up temporary directories"; exit 1; }
 
                                 echo "[INFO] Deployment successful."
                                 EOF
@@ -219,16 +216,6 @@ pipeline {
             }
         }
     }
-}
-
-
-
-        stage('Post-Deployment Verification') {
-            steps {
-                echo "Verifying deployment..."
-            }
-        }
-    }
 
     post {
         success {
@@ -238,20 +225,7 @@ pipeline {
             echo "[ERROR] Pipeline failed. Initiating rollback."
             sshagent(credentials: [CREDENTIALS_ID]) {
                 sh '''
-                    ssh -i /home/ubuntu/vkey.pem ubuntu@ec2-3-110-190-110.ap-south-1.compute.amazonaws.com << EOF
+                    ssh -i /home/ubuntu/vkey.pem ubuntu@${env.FRONTEND_SERVER} << EOF
                     sudo service apache2 stop || exit 1
                     if [ -d /var/www/html/pinga-backup-${env.BUILD_DATE} ]; then
-                        sudo rm -rf /var/www/html/pinga || exit 1
-                        sudo mv /var/www/html/pinga-backup-${env.BUILD_DATE} /var/www/html/pinga || exit 1
-                        sudo chown -R www-data:www-data /var/www/html/pinga || exit 1
-                        sudo service apache2 start || exit 1
-                    else
-                        echo "[ERROR] Backup not found. Rollback aborted."
-                        exit 1
-                    fi
-                    EOF
-                '''
-            }
-        }
-    }
-}
+                        sudo rm -rf /var/www/html/pinga || exit 

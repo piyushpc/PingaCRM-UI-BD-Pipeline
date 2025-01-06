@@ -5,7 +5,7 @@ pipeline {
         AWS_DEFAULT_REGION = 'ap-south-1'
         BUILD_DATE = sh(script: "date +%Y%m%d%H%M%S", returnStdout: true).trim()
         BUILD_DIR = "/home/ubuntu"
-        DIST_FILE = 'env.DIST_FILE'
+        DIST_FILE = ''
         FRONTEND_SERVER = 'ec2-3-110-190-110.ap-south-1.compute.amazonaws.com'
         CREDENTIALS_ID = 'CREDENTIALS_ID'
     }
@@ -170,7 +170,7 @@ pipeline {
             steps {
                 script {
                     sh '''
-                    aws s3 cp s3://pinga-builds/${env.DIST_FILE} .
+                    aws s3 cp s3://pinga-builds/${DIST_FILE} .
                     if [ $? -ne 0 ]; then
                         echo "Error: File download failed"
                         exit 1

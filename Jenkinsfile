@@ -43,32 +43,33 @@ pipeline {
         }
 
         stage('Initialize') {
-            steps {
-                script {
-                    echo "[INFO] Initializing pipeline with parameters: ENVIRONMENT=${params.ENVIRONMENT}, BUILD_DATE=${env.BUILD_DATE}"
-                    switch (params.ENVIRONMENT) {
-                        case 'dev':
-                            env.DIST_FILE = "dist-dev-${env.BUILD_DATE}-new.tar.gz"
-                            env.FRONTEND_SERVER = "ec2-3-110-190-110.ap-south-1.compute.amazonaws.com"
-                            env.CREDENTIALS_ID = "dev-frontend-ssh-key"
-                            break
-                        case 'uat':
-                            env.DIST_FILE = "dist-uat-${env.BUILD_DATE}-new.tar.gz"
-                            env.FRONTEND_SERVER = "crmuat.pingacrm.com"
-                            env.CREDENTIALS_ID = "uat-frontend-ssh-key"
-                            break
-                        case 'prod':
-                            env.DIST_FILE = "dist-prod-${env.BUILD_DATE}-new.tar.gz"
-                            env.FRONTEND_SERVER = "crmprod.pingacrm.com"
-                            env.CREDENTIALS_ID = "prod-frontend-ssh-key"
-                            break
-                        default:
-                            error "[ERROR] Invalid environment: ${params.ENVIRONMENT}. Use 'dev', 'uat', or 'prod'."
-                    }
-                    echo "[INFO] Configuration set: DIST_FILE=${env.DIST_FILE}, FRONTEND_SERVER=${env.FRONTEND_SERVER}"
-                }
+    steps {
+        script {
+            echo "[INFO] Initializing pipeline with parameters: ENVIRONMENT=${params.ENVIRONMENT}, BUILD_DATE=${env.BUILD_DATE}"
+            switch (params.ENVIRONMENT) {
+                case 'dev':
+                    env.DIST_FILE = "dist-dev-${env.BUILD_DATE}-new.tar.gz"
+                    env.FRONTEND_SERVER = "ec2-3-110-190-110.ap-south-1.compute.amazonaws.com"
+                    env.CREDENTIALS_ID = "dev-frontend-ssh-key"
+                    break
+                case 'uat':
+                    env.DIST_FILE = "dist-uat-${env.BUILD_DATE}-new.tar.gz"
+                    env.FRONTEND_SERVER = "crmuat.pingacrm.com"
+                    env.CREDENTIALS_ID = "uat-frontend-ssh-key"
+                    break
+                case 'prod':
+                    env.DIST_FILE = "dist-prod-${env.BUILD_DATE}-new.tar.gz"
+                    env.FRONTEND_SERVER = "crmprod.pingacrm.com"
+                    env.CREDENTIALS_ID = "prod-frontend-ssh-key"
+                    break
+                default:
+                    error "[ERROR] Invalid environment: ${params.ENVIRONMENT}. Use 'dev', 'uat', or 'prod'."
             }
+            echo "[DEBUG] ENVIRONMENT=${params.ENVIRONMENT}, DIST_FILE=${env.DIST_FILE}, FRONTEND_SERVER=${env.FRONTEND_SERVER}, CREDENTIALS_ID=${env.CREDENTIALS_ID}"
         }
+    }
+}
+
 
       //  stage('Backup Current Code') {
         //    steps {

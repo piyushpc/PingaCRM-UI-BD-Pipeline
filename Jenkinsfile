@@ -132,7 +132,7 @@ pipeline {
 
         stage('Deploy to Server') {
     steps {
-        sshagent(['ubuntu']) {
+        sshagent(['CREDENTIALS_ID']) {
             script {
                 try {
                     echo "[INFO] Initiating deployment to ${FRONTEND_SERVER}..."

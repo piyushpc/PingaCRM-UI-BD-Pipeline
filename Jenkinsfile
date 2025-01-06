@@ -63,6 +63,15 @@ pipeline {
             }
         }
 
+           stage('Backup Current Code') {
+            steps {
+                echo "[INFO] Backing up current deployment at /home/ubuntu/pinga"
+                sh "sudo cp -R /home/ubuntu/pinga /home/ubuntu/pinga-${env.BUILD_DATE}-backup || exit 1"
+                echo "[INFO] Backup completed successfully."
+            }
+        }
+
+
         stage('Clean Old Build Files') {
             steps {
                 echo "[INFO] Cleaning up old build files from previous deployments."

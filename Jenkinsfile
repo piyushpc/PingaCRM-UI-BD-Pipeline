@@ -185,7 +185,7 @@ stage('Compress & Upload Build Artifacts') {
     }
 }
 
-        echo "[DEBUG] ENVIRONMENT=${params.ENVIRONMENT}, CREDENTIALS_ID=${env.CREDENTIALS_ID}, FRONTEND_SERVER=${env.FRONTEND_SERVER}"
+        echo "[DEBUG] ENVIRONMENT=${params.ENVIRONMENT}, CREDENTIALS_ID=${env.CREDENTIALS_ID}"
 
 
 

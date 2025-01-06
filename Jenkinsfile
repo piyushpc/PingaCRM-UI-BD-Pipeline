@@ -5,7 +5,7 @@ pipeline {
         AWS_DEFAULT_REGION = 'ap-south-1'
         BUILD_DATE = "${new Date().format('ddMMMyyyy')}"
         BUILD_DIR = "/home/ubuntu"
-        DIST_FILE = ''
+        DIST_FILE = "env.DIST_FILE"
         FRONTEND_SERVER = 'ec2-3-110-190-110.ap-south-1.compute.amazonaws.com'
         CREDENTIALS_ID = 'CREDENTIALS_ID'
     }
@@ -161,7 +161,7 @@ pipeline {
     sudo service apache2 stop || { echo "[ERROR] Failed to stop Apache"; exit 1; }
     
     echo "[INFO] Downloading the new build from S3..."
-    aws s3 cp s3://pinga-builds/${DIST_FILE} . || { echo '[ERROR] S3 download failed'; exit 1; }
+    aws s3 cp s3://pinga-builds/${env.DIST_FILE} . || { echo '[ERROR] S3 download failed'; exit 1; }
 
     echo "[INFO] Renaming old dist directory..."
     if [ -d /var/www/html/pinga ]; then
@@ -192,6 +192,7 @@ pipeline {
     echo "[INFO] Deployment successful."
     EOF
 """
+
 
                         } catch (Exception e) {
                             echo "[ERROR] Deployment failed: ${e.getMessage()}"

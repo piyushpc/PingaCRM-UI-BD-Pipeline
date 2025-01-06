@@ -168,7 +168,8 @@ stage('Deploy to Server') {
 
                     // Execute deployment on the remote server
                     sh """
-                        sudo -u jenkins ssh -i /home/ubuntu/vkey.pem ubuntu@${env.FRONTEND_SERVER} << EOF
+                        
+                        ssh -o StrictHostKeyChecking=no ubuntu@${env.FRONTEND_SERVER} << EOF
 
                         echo "[INFO] Stopping Apache..."
                         sudo service apache2 stop || { echo "[ERROR] Failed to stop Apache"; exit 1; }

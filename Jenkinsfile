@@ -165,9 +165,21 @@ pipeline {
                         echo "[INFO] Stopping Apache..."
                         sudo service apache2 stop || { echo "[ERROR] Failed to stop Apache"; exit 1; }
 
-                         echo "[INFO] Downloading the new build from S3..."
-                        sh "aws s3 cp s3://pinga-builds/${env.DIST_FILE} ." || { echo "[ERROR] S3 download failed"; exit 1; }
-
+                         stages {
+        stage('Download Artifact') {
+            steps {
+                script {
+                    sh '''
+                    aws s3 cp s3://pinga-builds/${env.DIST_FILE} .
+                    if [ $? -ne 0 ]; then
+                        echo "Error: File download failed"
+                        exit 1
+                    fi
+                    '''
+                }
+            }
+        }
+    }
 
 
 

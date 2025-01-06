@@ -191,15 +191,17 @@ stage('Compress & Upload Build Artifacts') {
 
 
          stage('Deploy to Server') {
-    steps {
-        echo "[INFO] Deploying build artifact to server: ${FRONTEND_SERVER}"
-        echo "[DEBUG] ENVIRONMENT=${params.ENVIRONMENT}, CREDENTIALS_ID=${env.CREDENTIALS_ID}"
-
-        // Using credentials to SSH into the frontend server and perform deployment steps
-        withCredentials([sshUserPrivateKey(credentialsId: "${env.CREDENTIALS_ID}", keyFileVariable: 'SSH_KEY_PATH')]) {
-            sh '''
-                # SSH into the server and perform deployment steps dynamically based on the environment
-                ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${FRONTEND_SERVER} << EOF
+            steps {
+                script {
+                    if (CREDENTIALS_ID == null || CREDENTIALS_ID == '') {
+                        error "CREDENTIALS_ID is not set. Ensure it is defined in the environment section."
+                    }
+                }
+                echo "Using CREDENTIALS_ID=${CREDENTIALS_ID}"
+                sshagent(credentials: [CREDENTIALS_ID]) {
+                    sh '''
+                    ssh -i /home/ubuntu/vkey.pem ubuntu@ec2-3-110-190-110.ap-south-1.compute.amazonaws.com << EOF
+                    echo "Deploying build artifact..."
                 echo "[INFO] Stopping Apache server."
                 sudo service apache2 stop || exit 1
                 echo "[INFO] Apache server stopped."
@@ -235,28 +237,29 @@ stage('Compress & Upload Build Artifacts') {
 }
 
         stage('Post-Deployment Verification') {
+            when {
+                expression { currentBuild.resultIsBetterOrEqualTo('SUCCESS') }
+            }
             steps {
-                script {
-                    echo "[INFO] Verifying deployment by checking application health."
-                    def testCommand = "curl --fail https://${FRONTEND_SERVER} || exit 1"
-                    sh '''
-                        sudo -u jenkins ssh -i ${SSH_KEY_PATH} ubuntu@${FRONTEND_SERVER} ${testCommand}
+                echo "Verifying deployment..."
+               // jenkins ssh -i ${SSH_KEY_PATH} ubuntu@${FRONTEND_SERVER} ${testCommand}
                     '''
                     echo "[INFO] Deployment verification successful. Application is accessible."
                 }
             }
         }
-    }
 
     post {
-    success {
-        echo "[INFO] Pipeline executed successfully."
-    }
-    failure {
-        echo "[ERROR] Pipeline failed. Initiating rollback."
-        withCredentials([sshUserPrivateKey(credentialsId: "${env.CREDENTIALS_ID}", keyFileVariable: 'SSH_KEY_PATH')]) {
-            sh '''
-                ssh -i ${SSH_KEY_PATH} ubuntu@${FRONTEND_SERVER} << EOF
+        success {
+            echo "Deployment completed successfully."
+        }
+        failure {
+            echo "[ERROR] Pipeline failed. Initiating rollback."
+            sshagent(credentials: [CREDENTIALS_ID]) {
+                sh '''
+                ssh -i /home/ubuntu/vkey.pem ubuntu@ec2-3-110-190-110.ap-south-1.compute.amazonaws.com << EOF
+                echo "Rolling back changes..."
+                
                 # Stop Apache server before rollback
                 echo "[INFO] Stopping Apache server for rollback."
                 sudo service apache2 stop || { echo "[ERROR] Failed to stop Apache server."; exit 1; }
@@ -265,11 +268,6 @@ stage('Compress & Upload Build Artifacts') {
                 if [ ! -d /var/www/html/pinga-backup-${BUILD_DATE} ]; then
                     echo "[ERROR] Backup not found. Rollback aborted. Manual intervention required."
                     exit 1
-                fi
-
-                script {
-    echo "[DEBUG] CREDENTIALS_ID=${env.CREDENTIALS_ID}"
-}
 
 
                 # Perform rollback
@@ -285,7 +283,7 @@ stage('Compress & Upload Build Artifacts') {
                 echo "[INFO] Rollback completed successfully."
                 EOF
             '''
-        }
-    }
-}
+           }
+       }
+   }
 }

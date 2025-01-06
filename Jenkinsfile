@@ -154,31 +154,30 @@ pipeline {
                                     exit 1
                                 }
                             """
-                            
                             sh """
-    ssh -i /home/ubuntu/vkey.pem ubuntu@${env.FRONTEND_SERVER} << 'EOF'
+    ssh -i /home/ubuntu/vkey.pem ubuntu@${env.FRONTEND_SERVER} << EOF
     echo "[INFO] Stopping Apache..."
     sudo service apache2 stop || { echo "[ERROR] Failed to stop Apache"; exit 1; }
     
     echo "[INFO] Downloading the new build from S3..."
-    aws s3 cp s3://pinga-builds/${env.DIST_FILE} . || { echo '[ERROR] S3 download failed'; exit 1; }
+    aws s3 cp s3://pinga-builds/\${env.DIST_FILE} . || { echo '[ERROR] S3 download failed'; exit 1; }
 
     echo "[INFO] Renaming old dist directory..."
     if [ -d /var/www/html/pinga ]; then
-        sudo mv /var/www/html/pinga "/var/www/html/pinga-backup-$(date +%Y%m%d%H%M%S)" || { echo "[ERROR] Backup failed"; exit 1; }
+        sudo mv /var/www/html/pinga "/var/www/html/pinga-backup-\$(date +%Y%m%d%H%M%S)" || { echo "[ERROR] Backup failed"; exit 1; }
     fi
 
-    echo "[INFO] Ensuring /tmp/${env.ENVIRONMENT}-dist directory exists..."
-    mkdir -p /tmp/${env.ENVIRONMENT}-dist || { echo "[ERROR] Failed to create /tmp/${env.ENVIRONMENT}-dist"; exit 1; }
+    echo "[INFO] Ensuring /tmp/\${env.ENVIRONMENT}-dist directory exists..."
+    mkdir -p /tmp/\${env.ENVIRONMENT}-dist || { echo "[ERROR] Failed to create /tmp/\${env.ENVIRONMENT}-dist"; exit 1; }
 
     echo "[INFO] Unzipping the new build..."
-    tar -xvf ${env.DIST_FILE} -C /tmp/${env.ENVIRONMENT}-dist || { echo "[ERROR] Unzipping failed"; exit 1; }
+    tar -xvf \${env.DIST_FILE} -C /tmp/\${env.ENVIRONMENT}-dist || { echo "[ERROR] Unzipping failed"; exit 1; }
 
     echo "[INFO] Removing old deployment..."
     sudo rm -rf /var/www/html/pinga || { echo "[ERROR] Failed to remove old deployment"; exit 1; }
 
     echo "[INFO] Deploying new build..."
-    sudo mv /tmp/${env.ENVIRONMENT}-dist/dist/* /var/www/html/pinga || { echo "[ERROR] Deployment failed"; exit 1; }
+    sudo mv /tmp/\${env.ENVIRONMENT}-dist/dist/* /var/www/html/pinga || { echo "[ERROR] Deployment failed"; exit 1; }
 
     echo "[INFO] Updating permissions..."
     sudo chown -R www-data:www-data /var/www/html/pinga || { echo "[ERROR] Failed to update permissions"; exit 1; }
@@ -187,11 +186,12 @@ pipeline {
     sudo service apache2 start || { echo "[ERROR] Failed to start Apache"; exit 1; }
 
     echo "[INFO] Cleaning up temporary directories..."
-    sudo rm -rf /tmp/${env.ENVIRONMENT}-dist || { echo "[ERROR] Failed to clean up temporary directories"; exit 1; }
+    sudo rm -rf /tmp/\${env.ENVIRONMENT}-dist || { echo "[ERROR] Failed to clean up temporary directories"; exit 1; }
 
     echo "[INFO] Deployment successful."
     EOF
 """
+
 
 
                         } catch (Exception e) {

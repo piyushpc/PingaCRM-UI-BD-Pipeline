@@ -7,11 +7,9 @@ pipeline {
         BUILD_DIR = "/home/ubuntu"
         DIST_FILE = ''
         FRONTEND_SERVER = ''
-        CREDENTIALS_ID = ''
+        CREDENTIALS_ID = 'CREDENTIALS_ID'
     }
-    environment {
-    CREDENTIALS_ID = 'CREDENTIALS_ID'
-}
+    
 
 
     parameters {

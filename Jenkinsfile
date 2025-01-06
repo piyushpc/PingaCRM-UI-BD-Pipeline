@@ -144,31 +144,32 @@ pipeline {
             }
         }
 
-        stage('Stop Apache') {
+        stages {
+            stage('Stop Apache') {
             steps {
                 sshagent(credentials: [env.CREDENTIALS_ID]) {
                     sh """
                     ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${FRONTEND_SERVER} <<EOF
                         echo "[INFO] Stopping Apache..."
                         sudo service apache2 stop || { echo "[ERROR] Failed to stop Apache"; exit 1; }
-                    EOF
+        EOF
                     """
                 }
             }
         }
 
         stage('Download Build from S3') {
-            steps {
-                sshagent(credentials: [env.CREDENTIALS_ID]) {
-                    sh """
-                    ssh -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} <<EOF
-                        echo "[INFO] Downloading the new build from S3..."
-                        aws s3 cp s3://${S3_BUCKET}/${env.DIST_FILE} . || { echo "[ERROR] S3 download failed"; exit 1; }
-                    EOF
-                    """
-                }
+        steps {
+            sshagent(credentials: [env.CREDENTIALS_ID]) {
+                sh """
+                ssh -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} <<EOF
+                    echo "[INFO] Downloading the new build from S3..."
+                    aws s3 cp s3://${S3_BUCKET}/${env.DIST_FILE} . || { echo "[ERROR] S3 download failed"; exit 1; }
+    EOF
+                """
             }
         }
+    }
 
         stage('Backup Old Build') {
             steps {
@@ -179,7 +180,7 @@ pipeline {
                         if [ -d /var/www/html/pinga ]; then
                             sudo mv /var/www/html/pinga "/var/www/html/pinga-backup-\$(date +%Y%m%d%H%M%S)" || { echo "[ERROR] Backup failed"; exit 1; }
                         fi
-                    EOF
+EOF
                     """
                 }
             }
@@ -195,7 +196,7 @@ pipeline {
 
                         echo "[INFO] Unzipping the new build..."
                         tar -xvf ${env.DIST_FILE} -C /tmp/${params.ENVIRONMENT}-dist || { echo "[ERROR] Unzipping failed"; exit 1; }
-                    EOF
+EOF
                     """
                 }
             }
@@ -214,7 +215,7 @@ pipeline {
 
                         echo "[INFO] Updating permissions..."
                         sudo chown -R www-data:www-data /var/www/html/pinga || { echo "[ERROR] Failed to update permissions"; exit 1; }
-                    EOF
+EOF
                     """
                 }
             }
@@ -227,7 +228,7 @@ pipeline {
                     ssh -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} <<EOF
                         echo "[INFO] Starting Apache..."
                         sudo service apache2 start || { echo "[ERROR] Failed to start Apache"; exit 1; }
-                    EOF
+EOF
                     """
                 }
             }
@@ -240,11 +241,13 @@ pipeline {
                     ssh -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} <<EOF
                         echo "[INFO] Cleaning up temporary directories..."
                         sudo rm -rf /tmp/${params.ENVIRONMENT}-dist || { echo "[ERROR] Failed to clean up temporary directories"; exit 1; }
-                    EOF
+EOF
                     """
                 }
             }
         }
+    }
+
 
         stage('Finalize') {
             steps {

@@ -118,19 +118,21 @@ pipeline {
         }
 
         stage('Compress & Upload Build Artifacts') {
-            steps {
-                dir("${env.BUILD_DIR}/pinga/trunk") {
-                    echo "[INFO] Compressing and uploading build artifacts..."
-                    script {
-                        def DIST_FILE = "dist-${params.ENVIRONMENT}-${env.BUILD_DATE}-new.tar.gz"
-                        def TAR_PATH = "${env.BUILD_DIR}/${DIST_FILE}"
-                        sh "sudo tar -czvf ${TAR_PATH} dist || exit 1"
-                        sh "aws s3 cp ${TAR_PATH} s3://pinga-builds/ || exit 1"
-                        echo "[INFO] Build artifact uploaded to S3."
-                    }
-                }
+    steps {
+        dir("${env.BUILD_DIR}/pinga/trunk") {
+            echo "[INFO] Compressing and uploading build artifacts..."
+            script {
+                def DIST_FILE = "dist-${params.ENVIRONMENT}-${env.BUILD_DATE}-new.tar.gz"
+                def TAR_PATH = "${env.BUILD_DIR}/${DIST_FILE}"
+                sh "sudo tar -czvf ${TAR_PATH} dist || exit 1"
+                // Fix this part:
+                sh """aws s3 cp s3://pinga-builds/${env.DIST_FILE} . || { echo '[ERROR] S3 download failed'; exit 1; }"""
+                echo "[INFO] Build artifact uploaded to S3."
             }
         }
+    }
+}
+
 
         stage('Verify Server Availability') {
             steps {

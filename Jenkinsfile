@@ -5,7 +5,7 @@ pipeline {
         AWS_DEFAULT_REGION = 'ap-south-1'
         BUILD_DATE = sh(script: "date +%Y%m%d%H%M%S", returnStdout: true).trim()
         BUILD_DIR = "/home/ubuntu"
-        DIST_FILE = ''
+        DIST_FILE = 'env.DIST_FILE'
         FRONTEND_SERVER = 'ec2-3-110-190-110.ap-south-1.compute.amazonaws.com'
         CREDENTIALS_ID = 'CREDENTIALS_ID'
     }

@@ -151,47 +151,47 @@ pipeline {
             }
         }
 
-        stage('Deploy to Server') {
+stage('Deploy to Server') {
     steps {
-        sshagent(['CREDENTIALS_ID']) {
+        sshagent([CREDENTIALS_ID]) {
             script {
                 try {
-                    echo "[INFO] Initiating deployment to ${FRONTEND_SERVER}..."
-                    
+                    echo "[INFO] Initiating deployment to ${env.FRONTEND_SERVER}..."
+
                     // Step 1: Test SSH Connection
-                    sh '''
-                       sudo -u jenkins ssh -i /home/ubuntu/vkey.pem ubuntu@${FRONTEND_SERVER} "exit" || {
-                            echo "[ERROR] SSH connection failed. Check your key, permissions, and server accessibility.";
-                            exit 1;
+                    sh """
+                        ssh -i /home/ubuntu/vkey.pem ubuntu@${env.FRONTEND_SERVER} "exit" || {
+                            echo "[ERROR] SSH connection failed. Check your key, permissions, and server accessibility."
+                            exit 1
                         }
-                    '''
-                    
+                    """
+
                     // Execute deployment on the remote server
-                    sh '''
-                        sudo -u jenkins ssh -i /home/ubuntu/vkey.pem ubuntu@$FRONTEND_SERVER << EOF
+                    sh """
+                        sudo -u jenkins ssh -i /home/ubuntu/vkey.pem ubuntu@${env.FRONTEND_SERVER} << EOF
 
                         echo "[INFO] Stopping Apache..."
                         sudo service apache2 stop || { echo "[ERROR] Failed to stop Apache"; exit 1; }
 
                         echo "[INFO] Downloading the new build from S3..."
-                        aws s3 cp s3://pinga-builds/${DIST_FILE} . || { echo "[ERROR] S3 download failed"; exit 1; }
+                        aws s3 cp s3://pinga-builds/${env.DIST_FILE} . || { echo "[ERROR] S3 download failed"; exit 1; }
 
                         echo "[INFO] Renaming old dist directory..."
                         if [ -d /var/www/html/pinga ]; then
                             sudo mv /var/www/html/pinga "/var/www/html/pinga-backup-$(date +%Y%m%d%H%M%S)" || { echo "[ERROR] Backup failed"; exit 1; }
                         fi
 
-                        echo "[INFO] Ensuring /tmp/${ENVIRONMENT}-dist directory exists..."
-                        mkdir -p /tmp/${ENVIRONMENT}-dist || { echo "[ERROR] Failed to create /tmp/${ENVIRONMENT}-dist"; exit 1; }
+                        echo "[INFO] Ensuring /tmp/${env.ENVIRONMENT}-dist directory exists..."
+                        mkdir -p /tmp/${env.ENVIRONMENT}-dist || { echo "[ERROR] Failed to create /tmp/${env.ENVIRONMENT}-dist"; exit 1; }
 
                         echo "[INFO] Unzipping the new build..."
-                        tar -xvf ${DIST_FILE} -C /tmp/${ENVIRONMENT}-dist || { echo "[ERROR] Unzipping failed"; exit 1; }
+                        tar -xvf ${env.DIST_FILE} -C /tmp/${env.ENVIRONMENT}-dist || { echo "[ERROR] Unzipping failed"; exit 1; }
 
                         echo "[INFO] Removing old deployment..."
                         sudo rm -rf /var/www/html/pinga || { echo "[ERROR] Failed to remove old deployment"; exit 1; }
 
                         echo "[INFO] Deploying new build..."
-                        sudo mv /tmp/${ENVIRONMENT}-dist/dist/* /var/www/html/pinga || { echo "[ERROR] Deployment failed"; exit 1; }
+                        sudo mv /tmp/${env.ENVIRONMENT}-dist/dist/* /var/www/html/pinga || { echo "[ERROR] Deployment failed"; exit 1; }
 
                         echo "[INFO] Updating permissions..."
                         sudo chown -R www-data:www-data /var/www/html/pinga || { echo "[ERROR] Failed to update permissions"; exit 1; }
@@ -200,13 +200,13 @@ pipeline {
                         sudo service apache2 start || { echo "[ERROR] Failed to start Apache"; exit 1; }
 
                         echo "[INFO] Cleaning up temporary directories..."
-                        sudo rm -rf /tmp/${ENVIRONMENT}-dist || { echo "[ERROR] Failed to clean up temporary directories"; exit 1; }
+                        sudo rm -rf /tmp/${env.ENVIRONMENT}-dist || { echo "[ERROR] Failed to clean up temporary directories"; exit 1; }
                         echo "[INFO] Cleanup completed successfully!"
 
                         EOF
-                    '''
-                    
-                    echo "[INFO] Deployment to ${FRONTEND_SERVER} completed successfully!"
+                    """
+
+                    echo "[INFO] Deployment to ${env.FRONTEND_SERVER} completed successfully!"
                 } catch (Exception e) {
                     echo "[ERROR] Deployment failed: ${e.message}"
                     error("Aborting deployment.")
@@ -215,6 +215,7 @@ pipeline {
         }
     }
 }
+
 
         stage('Post-Deployment Verification') {
             steps {
@@ -233,9 +234,9 @@ pipeline {
                 sh '''
                     ssh -i /home/ubuntu/vkey.pem ubuntu@ec2-3-110-190-110.ap-south-1.compute.amazonaws.com << EOF
                     sudo service apache2 stop || exit 1
-                    if [ -d /var/www/html/pinga-backup-${BUILD_DATE} ]; then
+                    if [ -d /var/www/html/pinga-backup-${env.BUILD_DATE} ]; then
                         sudo rm -rf /var/www/html/pinga || exit 1
-                        sudo mv /var/www/html/pinga-backup-${BUILD_DATE} /var/www/html/pinga || exit 1
+                        sudo mv /var/www/html/pinga-backup-${env.BUILD_DATE} /var/www/html/pinga || exit 1
                         sudo chown -R www-data:www-data /var/www/html/pinga || exit 1
                         sudo service apache2 start || exit 1
                     else

@@ -144,33 +144,32 @@ pipeline {
                 }
             }
         }
-
-                stage('Stop Apache') {
-                steps {
-                    sshagent(credentials: [env.CREDENTIALS_ID]) {
-                        sh """
-                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${FRONTEND_SERVER} <<EOF
-                            echo "[INFO] Stopping Apache..."
-                            sudo service apache2 stop || { echo "[ERROR] Failed to stop Apache"; exit 1; }
-            EOF
-                        """
-                    }
-                }
-            }
-
             stages {
-        stage('Download Build from S3') {
+            stage('Stop Apache') {
             steps {
                 sshagent(credentials: [env.CREDENTIALS_ID]) {
                     sh """
-                    ssh -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} <<EOF
-                        echo "[INFO] Downloading the new build from S3..."
-                        aws s3 cp s3://${S3_BUCKET}/${env.DIST_FILE} . || { echo "[ERROR] S3 download failed"; exit 1; }
-EOF
+                    ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${FRONTEND_SERVER} <<EOF
+                        echo "[INFO] Stopping Apache..."
+                        sudo service apache2 stop || { echo "[ERROR] Failed to stop Apache"; exit 1; }
+        EOF
                     """
                 }
             }
         }
+
+        stage('Download Build from S3') {
+        steps {
+            sshagent(credentials: [env.CREDENTIALS_ID]) {
+                sh """
+                ssh -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} <<EOF
+                    echo "[INFO] Downloading the new build from S3..."
+                    aws s3 cp s3://${S3_BUCKET}/${env.DIST_FILE} . || { echo "[ERROR] S3 download failed"; exit 1; }
+    EOF
+                """
+            }
+        }
+    }
 
         stage('Backup Old Build') {
             steps {
@@ -258,7 +257,6 @@ EOF
         }
     }
 }
-
 
        
 

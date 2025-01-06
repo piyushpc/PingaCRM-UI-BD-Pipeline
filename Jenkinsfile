@@ -9,6 +9,10 @@ pipeline {
         FRONTEND_SERVER = ''
         CREDENTIALS_ID = ''
     }
+    environment {
+    CREDENTIALS_ID = 'CREDENTIALS_ID'
+}
+
 
     parameters {
         choice(

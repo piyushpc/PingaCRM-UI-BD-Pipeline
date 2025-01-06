@@ -122,27 +122,69 @@ pipeline {
         }
 
         stage('Deploy to Server') {
-            steps {
-                script {
-                    if (!CREDENTIALS_ID) {
-                        error "CREDENTIALS_ID is not set. Ensure it is defined in the environment section."
-                    }
-                }
-                sshagent(credentials: [CREDENTIALS_ID]) {
+    steps {
+        sshagent(['ubuntu']) {
+            script {
+                try {
+                    echo "[INFO] Initiating deployment to ${FRONTEND_SERVER}..."
+                    
+                    // Step 1: Test SSH Connection
                     sh '''
-                        ssh -i /home/ubuntu/vkey.pem ubuntu@ec2-3-110-190-110.ap-south-1.compute.amazonaws.com << EOF
-                        sudo service apache2 stop || exit 1
-                        aws s3 cp s3://pinga-builds/${DIST_FILE} . || exit 1
-                        mkdir -p /tmp/${ENVIRONMENT}-dist || exit 1
-                        tar -xvf ${DIST_FILE} -C /tmp/${ENVIRONMENT}-dist || exit 1
-                        sudo mv /tmp/${ENVIRONMENT}-dist/dist/* /var/www/html/pinga || exit 1
-                        sudo chown -R www-data:www-data /var/www/html/pinga || exit 1
-                        sudo service apache2 start || exit 1
+                        ssh -i /home/ubuntu/vkey.pem ubuntu@${FRONTEND_SERVER} "exit" || {
+                            echo "[ERROR] SSH connection failed. Check your key, permissions, and server accessibility.";
+                            exit 1;
+                        }
+                    '''
+                    
+                    // Execute deployment on the remote server
+                    sh '''
+                        ssh -i /home/ubuntu/vkey.pem ubuntu@${FRONTEND_SERVER} << 'EOF'
+
+                        echo "[INFO] Stopping Apache..."
+                        sudo service apache2 stop || { echo "[ERROR] Failed to stop Apache"; exit 1; }
+
+                        echo "[INFO] Downloading the new build from S3..."
+                        aws s3 cp s3://pinga-builds/${DIST_FILE} . || { echo "[ERROR] S3 download failed"; exit 1; }
+
+                        echo "[INFO] Renaming old dist directory..."
+                        if [ -d /var/www/html/pinga ]; then
+                            sudo mv /var/www/html/pinga "/var/www/html/pinga-backup-$(date +%Y%m%d%H%M%S)" || { echo "[ERROR] Backup failed"; exit 1; }
+                        fi
+
+                        echo "[INFO] Ensuring /tmp/${ENVIRONMENT}-dist directory exists..."
+                        mkdir -p /tmp/${ENVIRONMENT}-dist || { echo "[ERROR] Failed to create /tmp/${ENVIRONMENT}-dist"; exit 1; }
+
+                        echo "[INFO] Unzipping the new build..."
+                        tar -xvf ${DIST_FILE} -C /tmp/${ENVIRONMENT}-dist || { echo "[ERROR] Unzipping failed"; exit 1; }
+
+                        echo "[INFO] Removing old deployment..."
+                        sudo rm -rf /var/www/html/pinga || { echo "[ERROR] Failed to remove old deployment"; exit 1; }
+
+                        echo "[INFO] Deploying new build..."
+                        sudo mv /tmp/${ENVIRONMENT}-dist/dist/* /var/www/html/pinga || { echo "[ERROR] Deployment failed"; exit 1; }
+
+                        echo "[INFO] Updating permissions..."
+                        sudo chown -R www-data:www-data /var/www/html/pinga || { echo "[ERROR] Failed to update permissions"; exit 1; }
+
+                        echo "[INFO] Starting Apache..."
+                        sudo service apache2 start || { echo "[ERROR] Failed to start Apache"; exit 1; }
+
+                        echo "[INFO] Cleaning up temporary directories..."
+                        sudo rm -rf /tmp/${ENVIRONMENT}-dist || { echo "[ERROR] Failed to clean up temporary directories"; exit 1; }
+                        echo "[INFO] Cleanup completed successfully!"
+
                         EOF
                     '''
+                    
+                    echo "[INFO] Deployment to ${FRONTEND_SERVER} completed successfully!"
+                } catch (Exception e) {
+                    echo "[ERROR] Deployment failed: ${e.message}"
+                    error("Aborting deployment.")
                 }
             }
         }
+    }
+}
 
         stage('Post-Deployment Verification') {
             steps {

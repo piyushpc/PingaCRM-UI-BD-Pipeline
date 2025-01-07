@@ -7,7 +7,7 @@ pipeline {
         BUILD_DIR = "/home/ubuntu"
         DIST_FILE = ''
         FRONTEND_SERVER = ''
-        CREDENTIALS_ID = 'CREDENTIALS_ID'
+        CREDENTIALS_ID = 'env.CREDENTIALS_ID'
         S3_BUCKET = 'pinga-builds'
         SSH_KEY_PATH = '/home/ubuntu/vkey.pem'
     }

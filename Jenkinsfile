@@ -6,7 +6,7 @@ pipeline {
         BUILD_DATE = "${new Date().format('ddMMMyyyy')}"
         BUILD_DIR = "/home/ubuntu"
         DIST_FILE = ''
-        FRONTEND_SERVER = ''
+        FRONTEND_SERVER = 'ec2-3-110-190-110.ap-south-1.compute.amazonaws.com'
         CREDENTIALS_ID = ''
         S3_BUCKET = 'pinga-builds'
         SSH_KEY_PATH = '/home/ubuntu/vkey.pem'

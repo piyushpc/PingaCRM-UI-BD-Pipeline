@@ -295,12 +295,13 @@ pipeline {
                 }
             }
         }
-    
+    }
 
     stage('Smoke Tests') {
     steps {
         sshagent(credentials: [env.CREDENTIALS_ID]) {
             sh """
+            ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
             echo "[INFO] Running smoke tests for application..."
 
             # Check application health
@@ -308,6 +309,7 @@ pipeline {
 
             # Add more endpoints if needed
             echo "[INFO] Smoke tests passed successfully."
+             "
             """
         }
     }
@@ -374,6 +376,5 @@ pipeline {
             )
         }
     }
-}
 }
 }

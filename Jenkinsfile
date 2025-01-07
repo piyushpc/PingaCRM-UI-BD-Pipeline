@@ -13,6 +13,7 @@ pipeline {
     }
 
     parameters {
+        booleanParam(name: 'UPDATE_SVN', defaultValue: false, description: 'Set to true to fetch the latest code from SVN')
         choice(
             name: 'ENVIRONMENT',
             choices: ['dev', 'uat', 'prod'],

@@ -295,7 +295,7 @@ pipeline {
                 }
             }
         }
-    }
+    
 
     stage('Smoke Tests') {
     steps {

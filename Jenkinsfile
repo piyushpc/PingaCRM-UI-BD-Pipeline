@@ -296,9 +296,9 @@ pipeline {
                 }
             }
         }
-    }
 
-    stage('Smoke Tests') {
+        // Correct placement of the Smoke Tests stage within the 'stages' block
+        stage('Smoke Tests') {
             steps {
                 script {
                     echo "[INFO] Running smoke tests..."
@@ -317,67 +317,64 @@ pipeline {
                     }
                 }
             }
+        }
     }
 
     post {
-    success {
-        script {
-            echo "[INFO] Deployment completed successfully. Sending success notification..."
-            // Send Email Notification
-            emailext(
-                subject: "PingaCRM Deployment Successful",
-                body: """
-                Deployment for ${params.ENVIRONMENT} completed successfully at ${new Date()}.
-                Check the application: https://crmdev.pingacrm.com
-                """,
-                recipientProviders: [[$class: 'DevelopersRecipientProvider']]
-            )
-            
-            // Send Slack Notification (if configured)
-            slackSend(
-                color: 'good',
-                message: "PingaCRM Deployment Successful for ${params.ENVIRONMENT} :white_check_mark:"
-            )
-        }
-    }
-    failure {
-        script {
-            echo "[ERROR] Deployment failed. Initiating rollback and sending failure notification..."
-            // Rollback logic
-            sshagent(credentials: [CREDENTIALS_ID]) {
-                sh '''
-                    ssh -i /home/ubuntu/vkey.pem ubuntu@${env.FRONTEND_SERVER} << EOF
-                    sudo service apache2 stop || exit 1
-                    if [ -d /var/www/html/pinga-backup-${env.BUILD_DATE} ]; then
-                        sudo rm -rf /var/www/html/pinga || exit 1
-                        sudo mv /var/www/html/pinga-backup-${env.BUILD_DATE} /var/www/html/pinga || exit 1
-                    fi
-                    sudo service apache2 start || exit 1
-                    EOF
-                '''
+        success {
+            script {
+                echo "[INFO] Deployment completed successfully. Sending success notification..."
+                // Send Email Notification
+                emailext(
+                    subject: "PingaCRM Deployment Successful",
+                    body: """
+                    Deployment for ${params.ENVIRONMENT} completed successfully at ${new Date()}.
+                    Check the application: https://crmdev.pingacrm.com
+                    """,
+                    recipientProviders: [[$class: 'DevelopersRecipientProvider']]
+                )
+
+                // Send Slack Notification (if configured)
+                slackSend(
+                    color: 'good',
+                    message: "PingaCRM Deployment Successful for ${params.ENVIRONMENT} :white_check_mark:"
+                )
             }
+        }
 
-            // Send Email Notification
-            emailext(
-                subject: "PingaCRM Deployment Failed",
-                body: """
-                Deployment for ${params.ENVIRONMENT} failed. Rollback has been initiated.
-                Please check the Jenkins logs for details.
-                """,
-                recipientProviders: [[$class: 'DevelopersRecipientProvider']]
-            )
-            
-            // Send Slack Notification (if configured)
-           // slackSend(
-            //    color: 'danger',
-            //    message: "PingaCRM Deployment Failed for ${params.ENVIRONMENT}. Rollback initiated. :x:"
+        failure {
+            script {
+                echo "[ERROR] Deployment failed. Initiating rollback and sending failure notification..."
+                // Rollback logic
+                sshagent(credentials: [CREDENTIALS_ID]) {
+                    sh '''
+                        ssh -i /home/ubuntu/vkey.pem ubuntu@${env.FRONTEND_SERVER} << EOF
+                        sudo service apache2 stop || exit 1
+                        if [ -d /var/www/html/pinga-backup-${env.BUILD_DATE} ]; then
+                            sudo rm -rf /var/www/html/pinga || exit 1
+                            sudo mv /var/www/html/pinga-backup-${env.BUILD_DATE} /var/www/html/pinga || exit 1
+                        fi
+                        sudo service apache2 start || exit 1
+                        EOF
+                    '''
+                }
 
-            slackSend(
-    color: 'good', // 'good' for success, 'danger' for failure
-    channel: '#your-channel-name', // Optional if default is set
-    message: "PingaCRM Deployment Successful for ${params.ENVIRONMENT} :white_check_mark:"
-            )
+                // Send Email Notification
+                emailext(
+                    subject: "PingaCRM Deployment Failed",
+                    body: """
+                    Deployment for ${params.ENVIRONMENT} failed. Rollback has been initiated.
+                    Please check the Jenkins logs for details.
+                    """,
+                    recipientProviders: [[$class: 'DevelopersRecipientProvider']]
+                )
+
+                // Send Slack Notification (if configured)
+                slackSend(
+                    color: 'danger',
+                    message: "PingaCRM Deployment Failed for ${params.ENVIRONMENT}. Rollback initiated. :x:"
+                )
+            }
         }
     }
-}
 }

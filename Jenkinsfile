@@ -363,11 +363,17 @@ pipeline {
             )
             
             // Send Slack Notification (if configured)
+           // slackSend(
+            //    color: 'danger',
+            //    message: "PingaCRM Deployment Failed for ${params.ENVIRONMENT}. Rollback initiated. :x:"
+
             slackSend(
-                color: 'danger',
-                message: "PingaCRM Deployment Failed for ${params.ENVIRONMENT}. Rollback initiated. :x:"
+    color: 'good', // 'good' for success, 'danger' for failure
+    channel: '#your-channel-name', // Optional if default is set
+    message: "PingaCRM Deployment Successful for ${params.ENVIRONMENT} :white_check_mark:"
             )
         }
     }
 }
+
 

@@ -178,6 +178,7 @@ pipeline {
                     sh """
                     ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "echo [INFO] Server is reachable."
                     """
+                    echo "[INFO] Deployment process started..."
                 }
             }
         }
@@ -296,24 +297,77 @@ pipeline {
         }
     }
 
-    post {
-        success {
-            echo "[INFO] Deployment completed successfully."
-        }
-        failure {
-            echo "[ERROR] Pipeline failed. Initiating rollback."
-            sshagent(credentials: [env.CREDENTIALS_ID]) {
-                sh """
-                    ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
-                        sudo service apache2 stop || exit 1;
-                        if [ -d /var/www/html/pinga-backup-${BUILD_DATE} ]; then
-                            sudo rm -rf /var/www/html/pinga || exit 1;
-                            sudo mv /var/www/html/pinga-backup-${BUILD_DATE} /var/www/html/pinga || exit 1;
-                        fi;
-                        sudo service apache2 start || exit 1;
-                    "
-                """
-            }
+    stage('Smoke Tests') {
+    steps {
+        sshagent(credentials: [env.CREDENTIALS_ID]) {
+            sh """
+            echo "[INFO] Running smoke tests for application..."
+
+            # Check application health
+            curl -sSf https://crmdev.pingacrm.com || { echo "[ERROR] Smoke test failed: Application is not reachable"; exit 1; }
+
+            # Add more endpoints if needed
+            echo "[INFO] Smoke tests passed successfully."
+            """
         }
     }
 }
+
+
+    post {
+    success {
+        script {
+            echo "[INFO] Deployment completed successfully. Sending success notification..."
+            // Send Email Notification
+            emailext(
+                subject: "PingaCRM Deployment Successful",
+                body: """
+                Deployment for ${params.ENVIRONMENT} completed successfully at ${new Date()}.
+                Check the application: https://crmdev.pingacrm.com
+                """,
+                recipientProviders: [[$class: 'DevelopersRecipientProvider']]
+            )
+            
+            // Send Slack Notification (if configured)
+            slackSend(
+                color: 'good',
+                message: "PingaCRM Deployment Successful for ${params.ENVIRONMENT} :white_check_mark:"
+            )
+        }
+    }
+    failure {
+        script {
+            echo "[ERROR] Deployment failed. Initiating rollback and sending failure notification..."
+            // Rollback logic
+            sshagent(credentials: [CREDENTIALS_ID]) {
+                sh '''
+                    ssh -i /home/ubuntu/vkey.pem ubuntu@${env.FRONTEND_SERVER} << EOF
+                    sudo service apache2 stop || exit 1
+                    if [ -d /var/www/html/pinga-backup-${env.BUILD_DATE} ]; then
+                        sudo rm -rf /var/www/html/pinga || exit 1
+                        sudo mv /var/www/html/pinga-backup-${env.BUILD_DATE} /var/www/html/pinga || exit 1
+                    fi
+                    sudo service apache2 start || exit 1
+                    EOF
+                '''
+            }
+
+            // Send Email Notification
+            emailext(
+                subject: "PingaCRM Deployment Failed",
+                body: """
+                Deployment for ${params.ENVIRONMENT} failed. Rollback has been initiated.
+                Please check the Jenkins logs for details.
+                """,
+                recipientProviders: [[$class: 'DevelopersRecipientProvider']]
+            )
+            
+            // Send Slack Notification (if configured)
+            slackSend(
+                color: 'danger',
+                message: "PingaCRM Deployment Failed for ${params.ENVIRONMENT}. Rollback initiated. :x:"
+            )
+        }
+    }
+}
+

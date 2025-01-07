@@ -294,8 +294,7 @@ pipeline {
                     }
                 }
             }
-        }
-    }
+        
 
     stage('Smoke Tests') {
     steps {
@@ -314,7 +313,8 @@ pipeline {
         }
     }
 }
-
+}
+    }
 
     post {
     success {

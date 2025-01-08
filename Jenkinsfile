@@ -257,18 +257,17 @@ pipeline {
     steps {
         sshagent(credentials: [env.CREDENTIALS_ID]) {
             sh """
-            ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} <<EOF
-                echo "[INFO] Downloading the new build from S3: ${env.DIST_FILE}"
-                if ! aws s3 cp s3://${params.S3_BUCKET}/${env.DIST_FILE} .; then
-                    echo "[ERROR] S3 download failed but continuing..."
-                    exit 1
-                fi
-                echo "[INFO] Successfully downloaded: ${env.DIST_FILE}"
-            EOF
+            echo "[INFO] Downloading the new build from S3: ${env.DIST_FILE}"
+            if ! aws s3 cp s3://${S3_BUCKET}/${env.DIST_FILE} .; then
+                echo "[ERROR] S3 download failed but continuing..."
+                exit 1
+            fi
+            echo "[INFO] Successfully downloaded: ${env.DIST_FILE}"
             """
         }
     }
 }
+
 
         stage('Backup Old Build') {
             steps {

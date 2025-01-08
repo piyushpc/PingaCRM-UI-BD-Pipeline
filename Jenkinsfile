@@ -11,6 +11,7 @@ pipeline {
         S3_BUCKET = 'pinga-builds'
         SSH_KEY_PATH = '/home/ubuntu/vkey.pem'
         SLACK_CHANNEL = "jenkins"
+        DEPLOY_ENV = "${params.ENVIRONMENT}"
     }
 
     parameters {
@@ -158,21 +159,41 @@ pipeline {
             }
         }
 
+        stage('Setup Build Variables') {
+            steps {
+                script {
+                    // Generate the build date in the desired format
+                    BUILD_DATE = sh(script: "date +'%d%b%Y'", returnStdout: true).trim()
+                    // Construct the artifact name
+                    ARTIFACT_NAME = "dist-${DEPLOY_ENV}-${BUILD_DATE}-new.tar.gz"
+                    echo "[INFO] Selected Environment: ${DEPLOY_ENV}"
+                    echo "[INFO] Artifact Name: ${ARTIFACT_NAME}"
+                }
+            }
+        }
+
         stage('Compress & Upload Build Artifacts') {
     steps {
         dir("${env.BUILD_DIR}/pinga/trunk") {
             echo "[INFO] Compressing and uploading build artifacts..."
             script {
+                // Generate the build date dynamically
+                env.BUILD_DATE = sh(script: "date +'%d%b%Y'", returnStdout: true).trim()
+
                 // Set DIST_FILE dynamically with build date and environment parameters
                 env.DIST_FILE = "dist-${params.ENVIRONMENT}-${env.BUILD_DATE}-new.tar.gz"
                 def TAR_PATH = "${env.BUILD_DIR}/${env.DIST_FILE}"
 
                 // Compress the build artifacts
-                sh "sudo tar -czvf ${TAR_PATH} dist || exit 1"
+                sh """
+                    sudo tar -czvf ${TAR_PATH} dist || { echo '[ERROR] Compression failed'; exit 1; }
+                """
 
                 // Upload to S3
-                sh """aws s3 cp ${TAR_PATH} s3://pinga-builds/${env.DIST_FILE} || { echo '[ERROR] S3 upload failed'; exit 1; }"""
-                echo "[INFO] Build artifact uploaded to S3."
+                sh """
+                    aws s3 cp ${TAR_PATH} s3://${S3_BUCKET}/${env.DIST_FILE} || { echo '[ERROR] S3 upload failed'; exit 1; }
+                """
+                echo "[INFO] Build artifact uploaded to S3 as: ${env.DIST_FILE}"
             }
         }
     }
@@ -230,18 +251,18 @@ pipeline {
 }
         
         stage('Download Build from S3') {
-            steps {
-                sshagent(credentials: [env.CREDENTIALS_ID]) {
-                    sh """
-                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
-                            echo '[INFO] Downloading the new build from S3: ${env.DIST_FILE}';
-                            aws s3 cp s3://${S3_BUCKET}/${env.DIST_FILE} . || { echo '[ERROR] S3 download failed'; exit 1; }
-                            echo '[INFO] Successfully downloaded: ${env.DIST_FILE}';
-                        "
-                    """
-                }
-            }
+    steps {
+        sshagent(credentials: [env.CREDENTIALS_ID]) {
+            sh """
+                ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
+                    echo '[INFO] Downloading the new build from S3: ${env.DIST_FILE}';
+                    aws s3 cp s3://${S3_BUCKET}/${env.DIST_FILE} . || { echo '[ERROR] S3 download failed'; exit 1; }
+                    echo '[INFO] Successfully downloaded: ${env.DIST_FILE}';
+                "
+            """
         }
+    }
+}
 
         stage('Backup Old Build') {
             steps {

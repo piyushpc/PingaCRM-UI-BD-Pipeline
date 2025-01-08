@@ -160,18 +160,21 @@ pipeline {
         }
 
         stage('Setup Build Variables') {
-            steps {
-                script {
-                    // Generate the build date in the desired format
-                    BUILD_DATE = sh(script: "date +'%d%b%Y'", returnStdout: true).trim()
-                    // Construct the artifact name
-                    ARTIFACT_NAME = "dist-${DEPLOY_ENV}-${BUILD_DATE}-new.tar.gz"
-                    echo "[INFO] Selected Environment: ${DEPLOY_ENV}"
-                    echo "[INFO] Artifact Name: ${ARTIFACT_NAME}"
-                }
-            }
+    steps {
+        script {
+            // Generate the build date in the desired format
+            env.BUILD_DATE = sh(script: "date +'%d%b%Y'", returnStdout: true).trim()
+            
+            // Construct the artifact name dynamically based on environment and date
+            env.ARTIFACT_NAME = "dist-${params.ENVIRONMENT}-${env.BUILD_DATE}-new.tar.gz"
+            
+            // Log the selected environment and artifact name
+            echo "[INFO] Selected Environment: ${params.ENVIRONMENT}"
+            echo "[INFO] Build Date: ${env.BUILD_DATE}"
+            echo "[INFO] Artifact Name: ${env.ARTIFACT_NAME}"
         }
-
+    }
+}
         stage('Compress & Upload Build Artifacts') {
     steps {
         dir("${env.BUILD_DIR}/pinga/trunk") {

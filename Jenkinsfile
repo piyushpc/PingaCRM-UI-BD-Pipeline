@@ -219,10 +219,13 @@ pipeline {
                         BACKUP_DIR='/var/www/html/pinga-backup-\${BACKUP_DATE}'
                         
                         if [ -d /var/www/html/pinga ]; then
-                            sudo rm -rf \${BACKUP_DIR} || { echo '[ERROR] Failed to remove old backup directory'; exit 1; }
+                            echo '[INFO] Creating backup directory: \${BACKUP_DIR}';
                             sudo mv /var/www/html/pinga \${BACKUP_DIR} || { echo '[ERROR] Backup failed'; exit 1; }
+                        else
+                            echo '[INFO] No existing dist directory found, skipping backup step.';
                         fi
                     "
+
                     """
                 }
             }

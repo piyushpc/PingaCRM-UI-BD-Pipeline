@@ -13,6 +13,7 @@ pipeline {
     }
 
     parameters {
+       booleanParam(name: 'UPDATE_SVN', defaultValue: false, description: 'Set to true to fetch the latest code from SVN')
         choice(
             name: 'ENVIRONMENT',
             choices: ['dev', 'uat', 'prod'],
@@ -84,6 +85,44 @@ pipeline {
             }
         }
 
+       stage('Handle SVN Checkout/Update') {
+    steps {
+        script {
+            if (params.UPDATE_SVN) {
+                echo "[INFO] UPDATE_SVN is enabled. Checking SVN directory..."
+                
+                // Define SVN URL and local directory
+                def svnUrl = "https://extsvn.pingacrm.com/svn/pingacrm-frontend-new/trunk"
+                def svnDir = "/home/ubuntu/pinga/trunk"
+
+                withCredentials([usernamePassword(credentialsId: 'svn-credentials-id', 
+                                                  usernameVariable: 'SVN_USER', 
+                                                  passwordVariable: 'SVN_PASS')]) {
+                    // Check if the SVN directory exists
+                    def dirExists = sh(script: "if [ -d ${svnDir} ]; then echo exists; else echo not_exists; fi", returnStdout: true).trim()
+                    
+                    if (dirExists == "exists") {
+                        echo "[INFO] SVN directory exists. Performing svn update..."
+                        sh """
+                        svn update --username ${SVN_USER} --password ${SVN_PASS} ${svnDir} || exit 1
+                        """
+                    } else {
+                        echo "[INFO] SVN directory does not exist. Performing fresh svn checkout..."
+                        sh """
+                        svn checkout --username ${SVN_USER} --password ${SVN_PASS} ${svnUrl} ${svnDir} || exit 1
+                        """
+                    }
+                }
+
+                echo "[INFO] SVN operation completed successfully."
+            } else {
+                echo "[INFO] UPDATE_SVN is disabled. Skipping SVN operations."
+            }
+        }
+    }
+}
+
+
         stage('Clean Old Build Files') {
             steps {
                 echo "[INFO] Cleaning up old build files from previous deployments."
@@ -127,7 +166,6 @@ pipeline {
                         def DIST_FILE = "dist-${params.ENVIRONMENT}-${env.BUILD_DATE}-new.tar.gz"
                         def TAR_PATH = "${env.BUILD_DIR}/${DIST_FILE}"
                         sh "sudo tar -czvf ${TAR_PATH} dist || exit 1"
-                        // Fix this part:
                         sh """aws s3 cp ${TAR_PATH} s3://pinga-builds/${env.DIST_FILE} || { echo '[ERROR] S3 upload failed'; exit 1; }"""
                         echo "[INFO] Build artifact uploaded to S3."
                     }
@@ -144,32 +182,32 @@ pipeline {
                 }
             }
         }
-            stages {
-            stage('Stop Apache') {
+
+        stage('Stop Apache') {
             steps {
                 sshagent(credentials: [env.CREDENTIALS_ID]) {
                     sh """
                     ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${FRONTEND_SERVER} <<EOF
                         echo "[INFO] Stopping Apache..."
                         sudo service apache2 stop || { echo "[ERROR] Failed to stop Apache"; exit 1; }
-        EOF
+                    EOF
                     """
                 }
             }
         }
 
         stage('Download Build from S3') {
-        steps {
-            sshagent(credentials: [env.CREDENTIALS_ID]) {
-                sh """
-                ssh -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} <<EOF
-                    echo "[INFO] Downloading the new build from S3..."
-                    aws s3 cp s3://${S3_BUCKET}/${env.DIST_FILE} . || { echo "[ERROR] S3 download failed"; exit 1; }
-    EOF
-                """
+            steps {
+                sshagent(credentials: [env.CREDENTIALS_ID]) {
+                    sh """
+                    ssh -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} <<EOF
+                        echo "[INFO] Downloading the new build from S3..."
+                        aws s3 cp s3://${S3_BUCKET}/${env.DIST_FILE} . || { echo "[ERROR] S3 download failed"; exit 1; }
+                    EOF
+                    """
+                }
             }
         }
-    }
 
         stage('Backup Old Build') {
             steps {
@@ -180,7 +218,7 @@ pipeline {
                         if [ -d /var/www/html/pinga ]; then
                             sudo mv /var/www/html/pinga "/var/www/html/pinga-backup-\$(date +%Y%m%d%H%M%S)" || { echo "[ERROR] Backup failed"; exit 1; }
                         fi
-EOF
+                    EOF
                     """
                 }
             }
@@ -196,7 +234,7 @@ EOF
 
                         echo "[INFO] Unzipping the new build..."
                         tar -xvf ${env.DIST_FILE} -C /tmp/${params.ENVIRONMENT}-dist || { echo "[ERROR] Unzipping failed"; exit 1; }
-EOF
+                    EOF
                     """
                 }
             }
@@ -215,7 +253,7 @@ EOF
 
                         echo "[INFO] Updating permissions..."
                         sudo chown -R www-data:www-data /var/www/html/pinga || { echo "[ERROR] Failed to update permissions"; exit 1; }
-EOF
+                    EOF
                     """
                 }
             }
@@ -228,7 +266,7 @@ EOF
                     ssh -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} <<EOF
                         echo "[INFO] Starting Apache..."
                         sudo service apache2 start || { echo "[ERROR] Failed to start Apache"; exit 1; }
-EOF
+                    EOF
                     """
                 }
             }
@@ -241,24 +279,11 @@ EOF
                     ssh -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} <<EOF
                         echo "[INFO] Cleaning up temporary directories..."
                         sudo rm -rf /tmp/${params.ENVIRONMENT}-dist || { echo "[ERROR] Failed to clean up temporary directories"; exit 1; }
-EOF
+                    EOF
                     """
                 }
             }
         }
-    }
-
-    post {
-        success {
-            echo "[INFO] Deployment completed successfully."
-        }
-        failure {
-            echo "[ERROR] Deployment failed. Please check the logs for details."
-        }
-    }
-}
-
-       
 
         stage('Finalize') {
             steps {
@@ -272,7 +297,7 @@ EOF
                 }
             }
         }
-    
+    }
 
     post {
         success {
@@ -281,16 +306,9 @@ EOF
         failure {
             echo "[ERROR] Pipeline failed. Initiating rollback."
             sshagent(credentials: [CREDENTIALS_ID]) {
-                sh '''
-                    ssh -i /home/ubuntu/vkey.pem ubuntu@${env.FRONTEND_SERVER} << EOF
-                    sudo service apache2 stop || exit 1
-                    if [ -d /var/www/html/pinga-backup-${env.BUILD_DATE} ]; then
-                        sudo rm -rf /var/www/html/pinga || exit 1
-                        sudo mv /var/www/html/pinga-backup-${env.BUILD_DATE} /var/www/html/pinga || exit 1
-                    fi
-                    sudo service apache2 start || exit 1
-                    EOF
-                '''
+                sh """
+                ssh -i ${SSH_KEY_PATH} ubuntu@${FRONTEND_SERVER} "sudo service apache2 start"
+                """
             }
         }
     }

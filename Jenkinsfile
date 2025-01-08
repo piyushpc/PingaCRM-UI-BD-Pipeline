@@ -166,12 +166,12 @@ pipeline {
             env.BUILD_DATE = sh(script: "date +'%d%b%Y'", returnStdout: true).trim()
             
             // Construct the artifact name dynamically based on environment and date
-            env.ARTIFACT_NAME = "dist-${params.ENVIRONMENT}-${env.BUILD_DATE}-new.tar.gz"
+            env.DIST_FILE = "dist-${params.ENVIRONMENT}-${env.BUILD_DATE}-new.tar.gz"
             
             // Log the selected environment and artifact name
             echo "[INFO] Selected Environment: ${params.ENVIRONMENT}"
             echo "[INFO] Build Date: ${env.BUILD_DATE}"
-            echo "[INFO] Artifact Name: ${env.ARTIFACT_NAME}"
+            echo "[INFO] Dist File: ${env.DIST_FILE}"
         }
     }
 }
@@ -180,21 +180,15 @@ pipeline {
         dir("${env.BUILD_DIR}/pinga/trunk") {
             echo "[INFO] Compressing and uploading build artifacts..."
             script {
-                // Generate the build date dynamically
-                env.BUILD_DATE = sh(script: "date +'%d%b%Y'", returnStdout: true).trim()
-
-                // Set DIST_FILE dynamically with build date and environment parameters
-                env.DIST_FILE = "dist-${params.ENVIRONMENT}-${env.BUILD_DATE}-new.tar.gz"
                 def TAR_PATH = "${env.BUILD_DIR}/${env.DIST_FILE}"
-
+                
                 // Compress the build artifacts
-                sh """
-                    sudo tar -czvf ${TAR_PATH} dist || { echo '[ERROR] Compression failed'; exit 1; }
-                """
-
+                sh "sudo tar -czvf ${TAR_PATH} dist || exit 1"
+                
                 // Upload to S3
                 sh """
-                    aws s3 cp ${TAR_PATH} s3://${S3_BUCKET}/${env.DIST_FILE} || { echo '[ERROR] S3 upload failed'; exit 1; }
+                    aws s3 cp ${TAR_PATH} s3://${env.S3_BUCKET}/${env.DIST_FILE} || \
+                    { echo '[ERROR] S3 upload failed'; exit 1; }
                 """
                 echo "[INFO] Build artifact uploaded to S3 as: ${env.DIST_FILE}"
             }

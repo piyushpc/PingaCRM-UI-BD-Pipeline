@@ -196,16 +196,37 @@ pipeline {
         }
     }
 }
+        stage('Set DIST_FILE Dynamically') {
+            steps {
+                script {
+                    def latestFile = sh(
+                        script: """
+                            aws s3 ls s3://${S3_BUCKET}/ --region ${AWS_DEFAULT_REGION} | sort | tail -n 1 | awk '{print \$4}'
+                        """,
+                        returnStdout: true
+                    ).trim()
+
+                    if (latestFile) {
+                        echo "Latest file in S3 bucket: ${latestFile}"
+                        env.DIST_FILE = latestFile
+                    } else {
+                        error "No files found in S3 bucket: ${S3_BUCKET}"
+                    }
+                }
+            }
+        }
         stage('Download Build from S3') {
-    steps {
-        sshagent(credentials: [env.CREDENTIALS_ID]) {
-            sh """
-                ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
-                    echo '[INFO] Downloading the new build from S3...';
-                    aws s3 cp s3://${S3_BUCKET}/${env.DIST_FILE} . || { echo '[ERROR] S3 download failed'; exit 1; }
-                    echo '[INFO] Successfully downloaded: ${env.DIST_FILE}';
-                "
-            """
+            steps {
+                sshagent(credentials: [env.CREDENTIALS_ID]) {
+                    sh """
+                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
+                            echo '[INFO] Downloading the new build from S3: ${env.DIST_FILE}';
+                            aws s3 cp s3://${S3_BUCKET}/${env.DIST_FILE} . || { echo '[ERROR] S3 download failed'; exit 1; }
+                            echo '[INFO] Successfully downloaded: ${env.DIST_FILE}';
+                        "
+                    """
+                }
+            }
         }
     }
 }

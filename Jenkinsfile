@@ -308,7 +308,7 @@ pipeline {
                         echo "[INFO] Running smoke tests for application..."
             
                         # Check application health
-                        curl -sSf https://crmdev.pingacrm.com || { echo "[ERROR] Smoke test failed: Application is not reachable"; exit 1; }
+                        curl -sSf https://crmdev.pingacrm.com | grep -q "<title>Pinga CRM</title>" || { echo "[ERROR] Smoke test failed: Content validation failed"; exit 1; }
             
                         # Add more endpoints if needed
                         echo "[INFO] Smoke tests passed successfully."

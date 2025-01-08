@@ -163,15 +163,18 @@ pipeline {
             steps {
                 script {
                     // Generate the build date in the desired format
-                    env.BUILD_DATE = sh(script: "date +'%d%b%Y'", returnStdout: true).trim()
+                    def BUILD_DATE = sh(script: "date +'%d%b%Y'", returnStdout: true).trim()
                     
                     // Dynamically set DIST_FILE
-                    env.DIST_FILE = "dist-${params.ENVIRONMENT}-${env.BUILD_DATE}-new.tar.gz"
+                    def DIST_FILE = "dist-${params.ENVIRONMENT}-${BUILD_DATE}-new.tar.gz"
                     
                     // Logging
                     echo "[INFO] Selected Environment: ${params.ENVIRONMENT}"
-                    echo "[INFO] Build Date: ${env.BUILD_DATE}"
-                    echo "[INFO] Dist File: ${env.DIST_FILE}"
+                    echo "[INFO] Build Date: ${BUILD_DATE}"
+                    echo "[INFO] Dist File: ${DIST_FILE}"
+
+                    // Set DIST_FILE as an environment variable to be used in later stages
+                    env.DIST_FILE = DIST_FILE
                 }
             }
         }

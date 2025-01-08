@@ -5,7 +5,7 @@ pipeline {
         AWS_DEFAULT_REGION = 'ap-south-1'
         BUILD_DATE = sh(script: "date +'%d%b%Y'", returnStdout: true).trim() // Dynamically fetch the current build date
         BUILD_DIR = "/home/ubuntu"
-        DIST_FILE = '' // Will be set dynamically during the build
+        DIST_FILE = '' // Placeholder, will be set dynamically
         FRONTEND_SERVER = 'ec2-3-110-190-110.ap-south-1.compute.amazonaws.com'
         CREDENTIALS_ID = 'CREDENTIALS_ID'
         S3_BUCKET = 'pinga-builds'
@@ -160,41 +160,42 @@ pipeline {
         }
 
         stage('Setup Build Variables') {
-    steps {
-        script {
-            // Generate the build date in the desired format
-            env.BUILD_DATE = sh(script: "date +'%d%b%Y'", returnStdout: true).trim()
-            
-            // Construct the artifact name dynamically based on environment and date
-            env.DIST_FILE = "dist-${params.ENVIRONMENT}-${env.BUILD_DATE}-new.tar.gz"
-            
-            // Log the selected environment and artifact name
-            echo "[INFO] Selected Environment: ${params.ENVIRONMENT}"
-            echo "[INFO] Build Date: ${env.BUILD_DATE}"
-            echo "[INFO] Dist File: ${env.DIST_FILE}"
-        }
-    }
-}
-        stage('Compress & Upload Build Artifacts') {
-    steps {
-        dir("${env.BUILD_DIR}/pinga/trunk") {
-            echo "[INFO] Compressing and uploading build artifacts..."
-            script {
-                def TAR_PATH = "${env.BUILD_DIR}/${env.DIST_FILE}"
-                
-                // Compress the build artifacts
-                sh "sudo tar -czvf ${TAR_PATH} dist || exit 1"
-                
-                // Upload to S3
-                sh """
-                    aws s3 cp ${TAR_PATH} s3://${env.S3_BUCKET}/${env.DIST_FILE} || \
-                    { echo '[ERROR] S3 upload failed'; exit 1; }
-                """
-                echo "[INFO] Build artifact uploaded to S3 as: ${env.DIST_FILE}"
+            steps {
+                script {
+                    // Generate the build date in the desired format
+                    env.BUILD_DATE = sh(script: "date +'%d%b%Y'", returnStdout: true).trim()
+                    
+                    // Dynamically set DIST_FILE
+                    env.DIST_FILE = "dist-${params.ENVIRONMENT}-${env.BUILD_DATE}-new.tar.gz"
+                    
+                    // Logging
+                    echo "[INFO] Selected Environment: ${params.ENVIRONMENT}"
+                    echo "[INFO] Build Date: ${env.BUILD_DATE}"
+                    echo "[INFO] Dist File: ${env.DIST_FILE}"
+                }
             }
         }
-    }
-}
+        
+        stage('Compress & Upload Build Artifacts') {
+            steps {
+                dir("${env.BUILD_DIR}/pinga/trunk") {
+                    echo "[INFO] Compressing and uploading build artifacts..."
+                    script {
+                        def TAR_PATH = "${env.BUILD_DIR}/${env.DIST_FILE}"
+                        
+                        // Compress the build artifacts
+                        sh "sudo tar -czvf ${TAR_PATH} dist || exit 1"
+                        
+                        // Upload to S3
+                        sh """
+                            aws s3 cp ${TAR_PATH} s3://${env.S3_BUCKET}/${env.DIST_FILE} || \
+                            { echo '[ERROR] S3 upload failed'; exit 1; }
+                        """
+                        echo "[INFO] Build artifact uploaded to S3 as: ${env.DIST_FILE}"
+                    }
+                }
+            }
+        }
 
         stage('Verify Server Availability') {
             steps {

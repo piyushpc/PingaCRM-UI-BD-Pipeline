@@ -184,6 +184,7 @@ pipeline {
                 dir("${env.BUILD_DIR}/pinga/trunk") {
                     echo "[INFO] Compressing and uploading build artifacts..."
                     script {
+                        // Use DIST_FILE from the previous step
                         def TAR_PATH = "${env.BUILD_DIR}/${env.DIST_FILE}"
                         
                         // Compress the build artifacts

@@ -196,25 +196,34 @@ pipeline {
         }
     }
 }
+        
         stage('Set DIST_FILE Dynamically') {
-            steps {
-                script {
-                    def latestFile = sh(
-                        script: """
-                            aws s3 ls s3://${S3_BUCKET}/ --region ${AWS_DEFAULT_REGION} | sort | tail -n 1 | awk '{print \$4}'
-                        """,
-                        returnStdout: true
-                    ).trim()
+    steps {
+        script {
+            def s3ListOutput = sh(
+                script: "aws s3 ls s3://${S3_BUCKET}/ --region ${AWS_DEFAULT_REGION}",
+                returnStdout: true
+            ).trim()
+            echo "S3 Bucket Contents:\n${s3ListOutput}"
 
-                    if (latestFile) {
-                        echo "Latest file in S3 bucket: ${latestFile}"
-                        env.DIST_FILE = latestFile
-                    } else {
-                        error "No files found in S3 bucket: ${S3_BUCKET}"
-                    }
-                }
+            def latestFile = sh(
+                script: """
+                    aws s3 ls s3://${S3_BUCKET}/ --region ${AWS_DEFAULT_REGION} | \
+                    grep '.tar.gz' | sort | tail -n 1 | awk '{print \$4}'
+                """,
+                returnStdout: true
+            ).trim()
+
+            if (latestFile) {
+                echo "Latest file in S3 bucket: ${latestFile}"
+                env.DIST_FILE = latestFile
+            } else {
+                error "No matching files found in S3 bucket: ${S3_BUCKET}"
             }
         }
+    }
+}
+        
         stage('Download Build from S3') {
             steps {
                 sshagent(credentials: [env.CREDENTIALS_ID]) {

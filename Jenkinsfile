@@ -229,7 +229,6 @@ pipeline {
             }
         }
     }
-}
 
         stage('Backup Old Build') {
             steps {

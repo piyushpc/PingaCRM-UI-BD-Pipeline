@@ -6,6 +6,7 @@ pipeline {
         BUILD_DATE = sh(script: "date +'%d%b%Y'", returnStdout: true).trim() // Dynamically fetch the current build date
         BUILD_DIR = "/home/ubuntu"
         //DIST_FILE = '' // Placeholder, will be set dynamically
+        env.DIST_FILE = DIST_FILE
         FRONTEND_SERVER = 'ec2-3-110-190-110.ap-south-1.compute.amazonaws.com'
         CREDENTIALS_ID = 'CREDENTIALS_ID'
         S3_BUCKET = 'pinga-builds'
@@ -255,13 +256,22 @@ pipeline {
         stage('Download Build from S3') {
     steps {
         sshagent(credentials: [env.CREDENTIALS_ID]) {
-            sh """
-                ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER}
-                    echo '[INFO] Downloading the new build from S3: ${env.DIST_FILE}';
-                    aws s3 cp s3://${S3_BUCKET}/${env.DIST_FILE} . || { echo '[ERROR] S3 download failed'; exit 1; }
-                    echo '[INFO] Successfully downloaded: ${env.DIST_FILE}';
-                "
-            """
+            script {
+                // Dynamically set the DIST_FILE based on environment and build date
+                def DIST_FILE = "dist-${params.ENVIRONMENT}-${sh(script: "date +'%d%b%Y'", returnStdout: true).trim()}-new.tar.gz"
+
+                // Logging the download process
+                echo "[INFO] Downloading the new build from S3: ${DIST_FILE}"
+
+                // SSH to the frontend server and download from S3
+                sh """
+                    ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} <<EOF
+                        echo '[INFO] Downloading the new build from S3: ${DIST_FILE}';
+                        aws s3 cp s3://${params.S3_BUCKET}/${DIST_FILE} . || { echo '[ERROR] S3 download failed'; exit 1; }
+                        echo '[INFO] Successfully downloaded: ${DIST_FILE}';
+                    EOF
+                """
+            }
         }
     }
 }

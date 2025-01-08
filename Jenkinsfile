@@ -256,22 +256,16 @@ pipeline {
         stage('Download Build from S3') {
     steps {
         sshagent(credentials: [env.CREDENTIALS_ID]) {
-            script {
-                // Dynamically set the DIST_FILE based on environment and build date
-                def DIST_FILE = "dist-${params.ENVIRONMENT}-${sh(script: "date +'%d%b%Y'", returnStdout: true).trim()}-new.tar.gz"
-
-                // Logging the download process
-                echo "[INFO] Downloading the new build from S3: ${DIST_FILE}"
-
-                // SSH to the frontend server and download from S3
-                sh """
-                    ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} <<EOF
-                        echo '[INFO] Downloading the new build from S3: ${DIST_FILE}';
-                        aws s3 cp s3://${params.S3_BUCKET}/${DIST_FILE} . || { echo '[ERROR] S3 download failed'; exit 1; }
-                        echo '[INFO] Successfully downloaded: ${DIST_FILE}';
-                    EOF
-                """
-            }
+            sh """
+            ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} <<EOF
+                echo "[INFO] Downloading the new build from S3: ${env.DIST_FILE}"
+                if ! aws s3 cp s3://${params.S3_BUCKET}/${env.DIST_FILE} .; then
+                    echo "[ERROR] S3 download failed but continuing..."
+                    exit 1
+                fi
+                echo "[INFO] Successfully downloaded: ${env.DIST_FILE}"
+            EOF
+            """
         }
     }
 }

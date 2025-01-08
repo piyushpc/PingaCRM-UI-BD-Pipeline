@@ -214,18 +214,11 @@ pipeline {
                 sshagent(credentials: [env.CREDENTIALS_ID]) {
                     sh """
                         ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
-                        echo '[INFO] Renaming old dist directory...';
-                        BACKUP_DATE=\$(date +'%d%b%Y')  # Get the current date in day-month-year format
-                        BACKUP_DIR='/var/www/html/pinga-backup-\${BACKUP_DATE}'
-                        
-                        if [ -d /var/www/html/pinga ]; then
-                            echo '[INFO] Creating backup directory: \${BACKUP_DIR}';
-                            sudo mv /var/www/html/pinga \${BACKUP_DIR} || { echo '[ERROR] Backup failed'; exit 1; }
-                        else
-                            echo '[INFO] No existing dist directory found, skipping backup step.';
-                        fi
-                    "
-
+                            echo '[INFO] Renaming old dist directory...';
+                            if [ -d /var/www/html/pinga ]; then
+                                sudo mv /var/www/html/pinga '/var/www/html/pinga-backup-${BUILD_DATE}' || { echo '[ERROR] Backup failed'; exit 1; }
+                            fi
+                        "
                     """
                 }
             }

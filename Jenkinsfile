@@ -272,14 +272,14 @@ pipeline {
         stage('Backup Old Build') {
             steps {
                 sshagent(credentials: [env.CREDENTIALS_ID]) {
-                    sh """
-                    ssh -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} <<EOF
-                        echo "[INFO] Renaming old dist directory..."
-                        if [ -d /var/www/html/pinga ]; then
-                            sudo mv /var/www/html/pinga "/var/www/html/pinga-backup-\$(date +%Y%m%d%H%M%S)" || { echo "[ERROR] Backup failed"; exit 1; }
-                        fi
+                    sh '''
+                    ssh -i /home/ubuntu/vkey.pem ubuntu@${env.FRONTEND_SERVER} << EOF
+                    echo "[INFO] Renaming old dist directory..."
+                    if [ -d /var/www/html/pinga ]; then
+                        sudo mv /var/www/html/pinga "/var/www/html/pinga-backup-$(date +%Y%m%d%H%M%S)" || { echo "[ERROR] Backup failed"; exit 1; }
+                    fi
                     EOF
-                    """
+                '''
                 }
             }
         }

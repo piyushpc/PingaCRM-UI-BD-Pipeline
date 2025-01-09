@@ -323,7 +323,6 @@ pipeline {
                 }
             }
         }
-    }
     post {
         success {
             echo "[INFO] Pipeline completed successfully!"

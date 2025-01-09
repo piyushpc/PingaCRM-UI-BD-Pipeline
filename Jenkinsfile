@@ -257,11 +257,15 @@ pipeline {
         
         stage('Download Build from S3') {
             steps {
+                sshagent(['ubuntu']) {
+                    sh '''
                 echo "[INFO] Downloading the new build from S3: ${DIST_FILE}"
-                sh '''
+                 ssh -o StrictHostKeyChecking=no -i /home/ubuntu/vkey.pem ubuntu@ec2-13-126-252-141.ap-south-1.compute.amazonaws.com '
                     aws s3 cp s3://pinga-builds/${DIST_FILE} . || { echo "[ERROR] Failed to download build file from S3"; exit 1; }
                     echo "[INFO] Successfully downloaded: ${DIST_FILE}"
-                '''
+                fi'
+                        echo "[INFO] Successfully downloaded: ${DIST_FILE}."
+                    '''
             }
         }
             }

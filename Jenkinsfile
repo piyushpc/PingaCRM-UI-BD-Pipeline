@@ -256,54 +256,83 @@ pipeline {
 }
         
         stage('Download Build from S3') {
-    steps {
-        sshagent(credentials: [env.CREDENTIALS_ID]) {
-            sh """
-            echo "[INFO] Downloading the new build from S3: ${env.DIST_FILE}"
-            if ! aws s3 cp s3://${S3_BUCKET}/${env.DIST_FILE} .; then
-                echo "[ERROR] S3 download failed but continuing..."
-                exit 1
-            fi
-            echo "[INFO] Successfully downloaded: ${env.DIST_FILE}"
-            """
+            steps {
+                echo "[INFO] Downloading the new build from S3: ${DIST_FILE}"
+                sh '''
+                    aws s3 cp s3://pinga-builds/${DIST_FILE} . || { echo "[ERROR] Failed to download build file from S3"; exit 1; }
+                    echo "[INFO] Successfully downloaded: ${DIST_FILE}"
+                '''
+            }
         }
-    }
-}
 
+        stage('Verify Build File') {
+            steps {
+                sh '''
+                    echo "[INFO] Verifying build file in Jenkins workspace..."
+                    if [ -f ${DIST_FILE} ]; then
+                        echo "[INFO] Build file found in Jenkins workspace."
+                    else
+                        echo "[ERROR] Build file not found in Jenkins workspace."
+                        exit 1
+                    fi
+                '''
+            }
+        }
 
         stage('Backup Old Build') {
             steps {
-                sshagent(credentials: [env.CREDENTIALS_ID]) {
-                    sh """
-                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
-                            echo '[INFO] Renaming old dist directory...';
-                            if [ -d /var/www/html/pinga ]; then
-                                sudo mv /var/www/html/pinga '/var/www/html/pinga-backup-${BUILD_DATE}' || { echo '[ERROR] Backup failed'; exit 1; }
-                            fi
-                        "
-                    """
+                sshagent(['ubuntu']) {
+                    sh '''
+                        echo "[INFO] Backing up old dist directory on dev server..."
+                        ssh -o StrictHostKeyChecking=no -i /home/ubuntu/vkey.pem ubuntu@ec2-13-126-252-141.ap-south-1.compute.amazonaws.com \
+                            'if [ -d /var/www/html/pinga ]; then
+                                sudo mv /var/www/html/pinga "/var/www/html/pinga-backup-${sh(script: "date +\"%d%b%Y\"", returnStdout: true).trim()}" || { echo "[ERROR] Backup failed"; exit 1; }
+                            fi'
+                        echo "[INFO] Old build backup completed successfully."
+                    '''
                 }
             }
         }
 
-
+        stage('Transfer Build to Dev Server') {
+            steps {
+                sshagent(['ubuntu']) {
+                    sh '''
+                        echo "[INFO] Transferring build file to dev server..."
+                        scp -o StrictHostKeyChecking=no -i /home/ubuntu/vkey.pem ${DIST_FILE} ubuntu@ec2-13-126-252-141.ap-south-1.compute.amazonaws.com:/tmp || { echo "[ERROR] File transfer failed"; exit 1; }
+                        echo "[INFO] Build file transferred successfully."
+                    '''
+                }
+            }
+        }
 
         stage('Prepare Deployment') {
             steps {
-                sshagent(credentials: [env.CREDENTIALS_ID]) {
-                    sh """
-                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
-                            echo '[INFO] Ensuring deployment directory exists...';
-                            mkdir -p /tmp/${params.ENVIRONMENT}-dist || { echo '[ERROR] Failed to create directory'; exit 1; }
+                sshagent(['ubuntu']) {
+                    sh '''
+                        echo "[INFO] Preparing deployment on dev server..."
+                        ssh -o StrictHostKeyChecking=no -i /home/ubuntu/vkey.pem ubuntu@ec2-13-126-252-141.ap-south-1.compute.amazonaws.com '
+                            echo "[INFO] Ensuring deployment directory exists...";
+                            mkdir -p /tmp/dev-dist || { echo "[ERROR] Failed to create directory"; exit 1; }
 
-                            echo '[INFO] Unzipping the new build...';
-                            tar -xvf ${env.DIST_FILE} -C /tmp/${params.ENVIRONMENT}-dist || { echo '[ERROR] Unzipping failed'; exit 1; }
-                        "
-                    """
+                            echo "[INFO] Unzipping the new build...";
+                            tar -xvf /tmp/${DIST_FILE} -C /tmp/dev-dist || { echo "[ERROR] Unzipping failed"; exit 1; }
+                        '
+                        echo "[INFO] Deployment preparation completed."
+                    '''
                 }
             }
         }
-
+    }
+    post {
+        success {
+            echo "[INFO] Pipeline completed successfully!"
+        }
+        failure {
+            echo "[ERROR] Pipeline failed. Check logs for details."
+        }
+    }
+}
         stage('Deploy New Build') {
             steps {
                 sshagent(credentials: [env.CREDENTIALS_ID]) {

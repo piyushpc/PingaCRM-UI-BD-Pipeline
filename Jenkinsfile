@@ -271,17 +271,33 @@ pipeline {
         }
 
         stage('Download Build from S3') {
-            steps {
-                sh """
-                    echo "[INFO] Downloading the new build from S3: ${env.DIST_FILE}"
-                    if ! aws s3 cp s3://${S3_BUCKET}/${env.DIST_FILE} .; then
-                        echo "[ERROR] S3 download failed but continuing..."
-                        exit 1
-                    fi
-                    echo "[INFO] Successfully downloaded: ${env.DIST_FILE}"
-                """
+    steps {
+        sshagent(credentials: [env.CREDENTIALS_ID]) {
+            script {
+                // Ensure that S3_BUCKET and DIST_FILE are being resolved correctly
+                echo "[INFO] Attempting to download from: s3://${env.S3_BUCKET}/${env.DIST_FILE}"
+                
+                // Check if the file exists in the S3 bucket before downloading
+                def checkFileExists = sh(script: "aws s3 ls s3://${env.S3_BUCKET}/${env.DIST_FILE}", returnStatus: true)
+                
+                if (checkFileExists != 0) {
+                    echo "[ERROR] File does not exist in S3: s3://${env.S3_BUCKET}/${env.DIST_FILE}"
+                    error "[ERROR] Aborting due to missing file in S3."
+                }
+                
+                // Download the file from S3
+                if (sh(script: "aws s3 cp s3://${env.S3_BUCKET}/${env.DIST_FILE} .", returnStatus: true) != 0) {
+                    echo "[ERROR] S3 download failed but continuing..."
+                    // Fail the build if download fails
+                    error "[ERROR] Failed to download ${env.DIST_FILE} from S3"
+                }
+                
+                echo "[INFO] Successfully downloaded: ${env.DIST_FILE}"
             }
         }
+    }
+}
+
 
         stage('Prepare Deployment') {
             steps {

@@ -4,6 +4,7 @@ pipeline {
     environment {
         AWS_DEFAULT_REGION = 'ap-south-1'
         BUILD_DATE = sh(script: "date +'%d%b%Y'", returnStdout: true).trim() // Dynamically fetch the current build date
+        DIST_FILE = "dist-dev-${sh(script: 'date +\"%d%b%Y\"', returnStdout: true).trim()}-new.tar.gz"
         BUILD_DIR = "/home/ubuntu"
         //DIST_FILE = '' // Placeholder, will be set dynamically
       //  DIST_FILE = "env.DIST_FILE"

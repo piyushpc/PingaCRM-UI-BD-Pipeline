@@ -323,15 +323,7 @@ pipeline {
                 }
             }
         }
-    post {
-        success {
-            echo "[INFO] Pipeline completed successfully!"
-        }
-        failure {
-            echo "[ERROR] Pipeline failed. Check logs for details."
-        }
-    }
-
+   
         stage('Deploy New Build') {
             steps {
                 sshagent(credentials: [env.CREDENTIALS_ID]) {

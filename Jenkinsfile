@@ -268,7 +268,6 @@ pipeline {
                     '''
             }
         }
-            }
 
         stage('Verify Build File') {
             steps {

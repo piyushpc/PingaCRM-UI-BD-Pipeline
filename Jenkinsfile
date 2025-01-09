@@ -13,6 +13,7 @@ pipeline {
         SSH_KEY_PATH = '/home/ubuntu/vkey.pem'
         SLACK_CHANNEL = "jenkins"
         DEPLOY_ENV = "${params.ENVIRONMENT}"
+        SHELL = '/bin/bash'
     }
 
     parameters {

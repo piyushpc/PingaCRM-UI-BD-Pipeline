@@ -253,7 +253,6 @@ pipeline {
             }
         }
     }
-        }
         
         stage('Download Build from S3') {
             steps {
@@ -465,4 +464,4 @@ pipeline {
             }
         }
     }
-}
+

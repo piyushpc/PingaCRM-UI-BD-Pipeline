@@ -288,6 +288,7 @@ pipeline {
                 sshagent(credentials: [env.CREDENTIALS_ID]) {
                     sh """
                         ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
+                            tmux has-session -t ${SSH_SESSION_NAME} 2>/dev/null || tmux new-session -d -s ${SSH_SESSION_NAME};
                             tmux send-keys -t ${SSH_SESSION_NAME} 'mkdir -p /tmp/${params.ENVIRONMENT}-dist && tar -xvf ${env.DIST_FILE} -C /tmp/${params.ENVIRONMENT}-dist || { echo [ERROR] Unzipping failed; exit 1; }' Enter
                         "
                     """
@@ -300,6 +301,7 @@ pipeline {
                 sshagent(credentials: [env.CREDENTIALS_ID]) {
                     sh """
                         ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
+                            tmux has-session -t ${SSH_SESSION_NAME} 2>/dev/null || tmux new-session -d -s ${SSH_SESSION_NAME};
                             tmux send-keys -t ${SSH_SESSION_NAME} 'sudo service apache2 start || { echo [ERROR] Failed to start Apache; exit 1; }' Enter
                         "
                     """
@@ -311,41 +313,26 @@ pipeline {
             steps {
                 sshagent(credentials: [env.CREDENTIALS_ID]) {
                     sh """
-                        echo "[INFO] Stopping persistent SSH session..."
                         ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
-                            tmux kill-session -t ${SSH_SESSION_NAME} || { echo '[ERROR] Failed to stop tmux session'; exit 1; }
+                            tmux kill-session -t ${SSH_SESSION_NAME} || echo '[INFO] No tmux session to terminate';
                         "
-                        echo "[INFO] Persistent SSH session stopped."
                     """
                 }
             }
         }
+
         stage('Cleanup') {
             steps {
                 sshagent(credentials: [env.CREDENTIALS_ID]) {
                     sh """
                         ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
-                            echo '[INFO] Cleaning up temporary directories...';
-                            sudo rm -rf /tmp/${params.ENVIRONMENT}-dist || { echo '[ERROR] Failed to clean up temporary directories'; exit 1; }
+                            sudo rm -rf /tmp/${params.ENVIRONMENT}-dist || echo '[INFO] No temporary files to remove';
                         "
                     """
                 }
             }
         }
 
-        stage('Finalize') {
-            steps {
-                script {
-                    if (currentBuild.result == 'FAILURE') {
-                        echo "[ERROR] Deployment process encountered errors."
-                    } else {
-                        echo "[INFO] Deployment process completed successfully."
-                    }
-                }
-            }
-        }
-
-        // Correct placement of the Smoke Tests stage within the 'stages' block
         stage('Smoke Tests') {
             steps {
                 script {
@@ -353,26 +340,18 @@ pipeline {
                     sshagent(credentials: [env.CREDENTIALS_ID]) {
                         sh """
                         ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
-                        echo "[INFO] Running smoke tests for application..."
-            
-                        # Check application health
-                        curl -sSf https://crmdev.pingacrm.com | grep -q "<title>Pinga CRM</title>" || { echo "[ERROR] Smoke test failed: Content validation failed"; exit 1; }
-            
-                        # Add more endpoints if needed
-                        echo "[INFO] Smoke tests passed successfully."
-                         "
+                        curl -sSf https://crmdev.pingacrm.com | grep -q "<title>Pinga CRM</title>" || { echo '[ERROR] Smoke test failed: Content validation failed'; exit 1; }
+                        echo '[INFO] Smoke tests passed successfully.';
+                        "
                         """
                     }
                 }
             }
         }
-    }
-
     post {
         success {
             script {
                 echo "[INFO] Deployment completed successfully. Sending success notification..."
-                // Send Email Notification
                 emailext(
                     subject: "PingaCRM Deployment Successful",
                     body: """
@@ -381,33 +360,27 @@ pipeline {
                     """,
                     recipientProviders: [[$class: 'DevelopersRecipientProvider']]
                 )
-
-                // Send Slack Notification (if configured)
                 slackSend(
                     color: 'good',
                     message: "PingaCRM Deployment Successful for ${params.ENVIRONMENT} :white_check_mark:"
                 )
             }
         }
-
         failure {
             script {
                 echo "[ERROR] Deployment failed. Initiating rollback and sending failure notification..."
-                // Rollback logic
-                sshagent(credentials: [CREDENTIALS_ID]) {
-                    sh '''
-                        ssh -i /home/ubuntu/vkey.pem ubuntu@${env.FRONTEND_SERVER} << EOF
-                        sudo service apache2 stop || exit 1
+                sshagent(credentials: [env.CREDENTIALS_ID]) {
+                    sh """
+                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
+                        sudo service apache2 stop || echo '[INFO] Apache was not running';
                         if [ -d /var/www/html/pinga-backup-${env.BUILD_DATE} ]; then
-                            sudo rm -rf /var/www/html/pinga || exit 1
-                            sudo mv /var/www/html/pinga-backup-${env.BUILD_DATE} /var/www/html/pinga || exit 1
+                            sudo rm -rf /var/www/html/pinga || echo '[INFO] No existing deployment to remove';
+                            sudo mv /var/www/html/pinga-backup-${env.BUILD_DATE} /var/www/html/pinga || echo '[ERROR] Rollback failed';
                         fi
-                        sudo service apache2 start || exit 1
-                        EOF
-                    '''
+                        sudo service apache2 start || echo '[ERROR] Failed to restart Apache';
+                        "
+                    """
                 }
-
-                // Send Email Notification
                 emailext(
                     subject: "PingaCRM Deployment Failed",
                     body: """
@@ -416,8 +389,6 @@ pipeline {
                     """,
                     recipientProviders: [[$class: 'DevelopersRecipientProvider']]
                 )
-
-                // Send Slack Notification (if configured)
                 slackSend(
                     color: 'danger',
                     message: "PingaCRM Deployment Failed for ${params.ENVIRONMENT}. Rollback initiated. :x:"
@@ -425,4 +396,3 @@ pipeline {
             }
         }
     }
-}

@@ -331,7 +331,7 @@ pipeline {
             echo "[ERROR] Pipeline failed. Check logs for details."
         }
     }
-}
+
         stage('Deploy New Build') {
             steps {
                 sshagent(credentials: [env.CREDENTIALS_ID]) {

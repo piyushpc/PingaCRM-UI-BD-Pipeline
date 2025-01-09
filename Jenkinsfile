@@ -267,8 +267,9 @@ pipeline {
                     '''
             }
         }
+    }
 
-        stage('Verify Build File') {
+         stage('Verify Build File') {
             steps {
                 sh '''
                     echo "[INFO] Verifying build file in Jenkins workspace..."
@@ -326,25 +327,7 @@ pipeline {
                 }
             }
         }
-   
-        stage('Deploy New Build') {
-            steps {
-                sshagent(credentials: [env.CREDENTIALS_ID]) {
-                    sh """
-                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
-                            echo '[INFO] Removing old deployment...';
-                            sudo rm -rf /var/www/html/pinga || { echo '[ERROR] Failed to remove old deployment'; exit 1; }
-
-                            echo '[INFO] Deploying new build...';
-                            sudo mv /tmp/${params.ENVIRONMENT}-dist/dist/* /var/www/html/pinga || { echo '[ERROR] Deployment failed'; exit 1; }
-
-                            echo '[INFO] Updating permissions...';
-                            sudo chown -R www-data:www-data /var/www/html/pinga || { echo '[ERROR] Failed to update permissions'; exit 1; }
-                        "
-                    """
-                }
-            }
-        }
+    }
 
         stage('Start Apache') {
             steps {
@@ -464,4 +447,4 @@ pipeline {
             }
         }
     }
-
+}

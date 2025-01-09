@@ -15,6 +15,7 @@ pipeline {
         SLACK_CHANNEL = "jenkins"
         DEPLOY_ENV = "${params.ENVIRONMENT}"
         SHELL = '/bin/bash'
+        SSH_SESSION_NAME = "jenkins-deployment-${BUILD_ID}"
     }
 
     parameters {
@@ -204,119 +205,90 @@ pipeline {
             }
         }
 
-        stage('Verify Server Availability') {
+        stage('Start Persistent SSH Session') {
             steps {
                 sshagent(credentials: [env.CREDENTIALS_ID]) {
                     sh """
-                    ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "echo [INFO] Server is reachable."
+                        echo "[INFO] Starting persistent SSH session..."
+                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
+                            tmux new-session -d -s ${SSH_SESSION_NAME} || { echo '[ERROR] Failed to start tmux session'; exit 1; }
+                        "
+                        echo "[INFO] Persistent SSH session started."
                     """
-                    echo "[INFO] Deployment process started..."
                 }
             }
         }
 
-        stage('Stop Apache') {
-    steps {
-        sshagent(credentials: [env.CREDENTIALS_ID]) {
-            sh """
-                ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
-                    echo '[INFO] Stopping Apache...';
-                    sudo service apache2 stop || { echo '[ERROR] Failed to stop Apache'; exit 1; }
-                "
-            """
-        }
-    }
-}
-        
-        stage('Set DIST_FILE Dynamically') {
-    steps {
-        script {
-            def s3ListOutput = sh(
-                script: "aws s3 ls s3://${S3_BUCKET}/ --region ${AWS_DEFAULT_REGION}",
-                returnStdout: true
-            ).trim()
-            echo "S3 Bucket Contents:\n${s3ListOutput}"
-
-            def latestFile = sh(
-                script: """
-                    aws s3 ls s3://${S3_BUCKET}/ --region ${AWS_DEFAULT_REGION} | \
-                    grep '.tar.gz' | sort | tail -n 1 | awk '{print \$4}'
-                """,
-                returnStdout: true
-            ).trim()
-
-            if (latestFile) {
-                echo "Latest file in S3 bucket: ${latestFile}"
-                env.DIST_FILE = latestFile
-            } else {
-                error "No matching files found in S3 bucket: ${S3_BUCKET}"
-            }
-        }
-    }
-}
-        
-        stage('Download Build from S3') {
-    steps {
-        sshagent(credentials: [env.CREDENTIALS_ID]) {
-            sh """
-            echo "[INFO] Downloading the new build from S3: ${env.DIST_FILE}"
-            if ! aws s3 cp s3://${S3_BUCKET}/${env.DIST_FILE} .; then
-                echo "[ERROR] S3 download failed but continuing..."
-                exit 1
-            fi
-            echo "[INFO] Successfully downloaded: ${env.DIST_FILE}"
-            """
-        }
-    }
-}
-
-
-        stage('Backup Old Build') {
+        stage('Verify Server Availability') {
             steps {
                 sshagent(credentials: [env.CREDENTIALS_ID]) {
                     sh """
                         ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
-                            echo '[INFO] Renaming old dist directory...';
-                            if [ -d /var/www/html/pinga ]; then
-                                sudo mv /var/www/html/pinga '/var/www/html/pinga-backup-${BUILD_DATE}' || { echo '[ERROR] Backup failed'; exit 1; }
-                            fi
+                            tmux send-keys -t ${SSH_SESSION_NAME} 'echo [INFO] Server is reachable.' Enter
                         "
                     """
                 }
             }
         }
 
+        stage('Stop Apache') {
+            steps {
+                sshagent(credentials: [env.CREDENTIALS_ID]) {
+                    sh """
+                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
+                            tmux send-keys -t ${SSH_SESSION_NAME} 'sudo service apache2 stop || { echo [ERROR] Failed to stop Apache; exit 1; }' Enter
+                        "
+                    """
+                }
+            }
+        }
 
+        stage('Set DIST_FILE Dynamically') {
+            steps {
+                script {
+                    def s3ListOutput = sh(
+                        script: "aws s3 ls s3://${S3_BUCKET}/ --region ${AWS_DEFAULT_REGION}",
+                        returnStdout: true
+                    ).trim()
+                    echo "S3 Bucket Contents:\n${s3ListOutput}"
+
+                    def latestFile = sh(
+                        script: """
+                            aws s3 ls s3://${S3_BUCKET}/ --region ${AWS_DEFAULT_REGION} | \
+                            grep '.tar.gz' | sort | tail -n 1 | awk '{print \$4}'
+                        """,
+                        returnStdout: true
+                    ).trim()
+
+                    if (latestFile) {
+                        echo "Latest file in S3 bucket: ${latestFile}"
+                        env.DIST_FILE = latestFile
+                    } else {
+                        error "No matching files found in S3 bucket: ${S3_BUCKET}"
+                    }
+                }
+            }
+        }
+
+        stage('Download Build from S3') {
+            steps {
+                sh """
+                    echo "[INFO] Downloading the new build from S3: ${env.DIST_FILE}"
+                    if ! aws s3 cp s3://${S3_BUCKET}/${env.DIST_FILE} .; then
+                        echo "[ERROR] S3 download failed but continuing..."
+                        exit 1
+                    fi
+                    echo "[INFO] Successfully downloaded: ${env.DIST_FILE}"
+                """
+            }
+        }
 
         stage('Prepare Deployment') {
             steps {
                 sshagent(credentials: [env.CREDENTIALS_ID]) {
                     sh """
                         ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
-                            echo '[INFO] Ensuring deployment directory exists...';
-                            mkdir -p /tmp/${params.ENVIRONMENT}-dist || { echo '[ERROR] Failed to create directory'; exit 1; }
-
-                            echo '[INFO] Unzipping the new build...';
-                            tar -xvf ${env.DIST_FILE} -C /tmp/${params.ENVIRONMENT}-dist || { echo '[ERROR] Unzipping failed'; exit 1; }
-                        "
-                    """
-                }
-            }
-        }
-
-        stage('Deploy New Build') {
-            steps {
-                sshagent(credentials: [env.CREDENTIALS_ID]) {
-                    sh """
-                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
-                            echo '[INFO] Removing old deployment...';
-                            sudo rm -rf /var/www/html/pinga || { echo '[ERROR] Failed to remove old deployment'; exit 1; }
-
-                            echo '[INFO] Deploying new build...';
-                            sudo mv /tmp/${params.ENVIRONMENT}-dist/dist/* /var/www/html/pinga || { echo '[ERROR] Deployment failed'; exit 1; }
-
-                            echo '[INFO] Updating permissions...';
-                            sudo chown -R www-data:www-data /var/www/html/pinga || { echo '[ERROR] Failed to update permissions'; exit 1; }
+                            tmux send-keys -t ${SSH_SESSION_NAME} 'mkdir -p /tmp/${params.ENVIRONMENT}-dist && tar -xvf ${env.DIST_FILE} -C /tmp/${params.ENVIRONMENT}-dist || { echo [ERROR] Unzipping failed; exit 1; }' Enter
                         "
                     """
                 }
@@ -328,14 +300,27 @@ pipeline {
                 sshagent(credentials: [env.CREDENTIALS_ID]) {
                     sh """
                         ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
-                            echo '[INFO] Starting Apache...';
-                            sudo service apache2 start || { echo '[ERROR] Failed to start Apache'; exit 1; }
+                            tmux send-keys -t ${SSH_SESSION_NAME} 'sudo service apache2 start || { echo [ERROR] Failed to start Apache; exit 1; }' Enter
                         "
                     """
                 }
             }
         }
 
+        stage('Stop Persistent SSH Session') {
+            steps {
+                sshagent(credentials: [env.CREDENTIALS_ID]) {
+                    sh """
+                        echo "[INFO] Stopping persistent SSH session..."
+                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
+                            tmux kill-session -t ${SSH_SESSION_NAME} || { echo '[ERROR] Failed to stop tmux session'; exit 1; }
+                        "
+                        echo "[INFO] Persistent SSH session stopped."
+                    """
+                }
+            }
+        }
+    }
         stage('Cleanup') {
             steps {
                 sshagent(credentials: [env.CREDENTIALS_ID]) {

@@ -295,8 +295,7 @@ pipeline {
                 echo "[INFO] Successfully downloaded: ${env.DIST_FILE}"
             }
         }
-    }
-}
+  
 
 
         stage('Prepare Deployment') {
@@ -412,3 +411,4 @@ pipeline {
             }
         }
     }
+    

@@ -320,7 +320,6 @@ pipeline {
                 }
             }
         }
-    }
         stage('Cleanup') {
             steps {
                 sshagent(credentials: [env.CREDENTIALS_ID]) {

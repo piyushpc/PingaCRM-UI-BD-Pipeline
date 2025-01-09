@@ -7,7 +7,7 @@ pipeline {
         BUILD_DIR = "/home/ubuntu"
         //DIST_FILE = '' // Placeholder, will be set dynamically
       //  DIST_FILE = "env.DIST_FILE"
-        FRONTEND_SERVER = 'ec2-3-110-190-110.ap-south-1.compute.amazonaws.com'
+        FRONTEND_SERVER = 'ec2-13-126-252-141.ap-south-1.compute.amazonaws.com'
         CREDENTIALS_ID = 'CREDENTIALS_ID'
         S3_BUCKET = 'pinga-builds'
         SSH_KEY_PATH = '/home/ubuntu/vkey.pem'
@@ -58,11 +58,6 @@ pipeline {
                             env.DIST_FILE = "dist-uat-${env.BUILD_DATE}-new.tar.gz"
                             env.FRONTEND_SERVER = "crmuat.pingacrm.com"
                             env.CREDENTIALS_ID = "uat-frontend-ssh-key"
-                            break
-                        case 'prod':
-                            env.DIST_FILE = "dist-uat-${env.BUILD_DATE}-new.tar.gz"
-                            env.FRONTEND_SERVER = "crmprod.pingacrm.com"
-                            env.CREDENTIALS_ID = "prod-frontend-ssh-key"
                             break
                         default:
                             error "[ERROR] Invalid environment: ${params.ENVIRONMENT}. Use 'dev', 'uat', or 'prod'."

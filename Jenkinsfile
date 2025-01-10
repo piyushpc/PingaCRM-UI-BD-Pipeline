@@ -205,7 +205,8 @@ pipeline {
             }
         }
 
-         stage('Deploy with Ansible') {
+         stages {
+        stage('Deploy with Ansible') {
             steps {
                 script {
                     ansiblePlaybook(
@@ -220,11 +221,7 @@ pipeline {
                 }
             }
         }
-    }
-}
 
-
-        // Correct placement of the Smoke Tests stage within the 'stages' block
         stage('Smoke Tests') {
             steps {
                 script {
@@ -232,13 +229,13 @@ pipeline {
                     sshagent(credentials: [env.CREDENTIALS_ID]) {
                         sh """
                         ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
-                        echo "[INFO] Running smoke tests for application..."
-            
+                        echo \"[INFO] Running smoke tests for application...\"
+
                         # Check application health
-                        curl -sSf https://crmdev.pingacrm.com | grep -q "<title>Pinga CRM</title>" || { echo "[ERROR] Smoke test failed: Content validation failed"; exit 1; }
-            
+                        curl -sSf https://crmdev.pingacrm.com | grep -q \"<title>Pinga CRM</title>\" || { echo \"[ERROR] Smoke test failed: Content validation failed\"; exit 1; }
+
                         # Add more endpoints if needed
-                        echo "[INFO] Smoke tests passed successfully."
+                        echo \"[INFO] Smoke tests passed successfully.\"
                          "
                         """
                     }
@@ -305,3 +302,4 @@ pipeline {
         }
     }
 }
+

@@ -5,7 +5,7 @@ pipeline {
         AWS_DEFAULT_REGION = 'ap-south-1'
         BUILD_DATE = "${new Date().format('ddMMMyyyy')}"
         BUILD_DIR = "/home/ubuntu"
-        DIST_FILE = ''
+        DIST_FILE = "dist-dev-${sh(script: 'date +\"%d%b%Y\"', returnStdout: true).trim()}-new.tar.gz"
         FRONTEND_SERVER = 'ec2-65-2-170-67.ap-south-1.compute.amazonaws.com'
         CREDENTIALS_ID = 'CREDENTIALS_ID'
         S3_BUCKET = 'pinga-builds'

@@ -320,7 +320,7 @@ pipeline {
             }
         }
     }
-
+}
 
     post {
         success {
@@ -343,6 +343,7 @@ pipeline {
                 )
             }
         }
+    }
 
         failure {
             script {
@@ -360,6 +361,8 @@ pipeline {
                         EOF
                     '''
                 }
+            }
+    
 
                 // Send Email Notification
                 emailext(

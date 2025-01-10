@@ -326,9 +326,10 @@ pipeline {
                     recipientProviders: [[$class: 'DevelopersRecipientProvider']]
                 )
                 slackSend(
-                    color: 'good',
-                    message: "PingaCRM Deployment Successful for ${params.ENVIRONMENT} :white_check_mark:"
-                )
+                color: 'good',
+                message: "PingaCRM Deployment Successful for ${params.ENVIRONMENT} :white_check_mark:",
+                tokenCredentialId: 'slack-bot-token'  // Replace with your actual credential ID
+            )
             }
         }
 

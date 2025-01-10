@@ -209,8 +209,8 @@ pipeline {
             steps {
                 script {
                     ansiblePlaybook(
-                        playbook: 'deploy.yml',
-                        inventory: 'inventory.ini',
+                        playbook: '/home/jenkins/ansible/deploy.yml', // Absolute path to deploy.yml
+                        inventory: '/home/jenkins/ansible/inventory.ini', // Absolute path to inventory.ini
                         extraVars: [
                             environment: params.ENVIRONMENT,
                             artifact_name: env.DIST_FILE

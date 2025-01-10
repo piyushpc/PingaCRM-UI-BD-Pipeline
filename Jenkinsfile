@@ -1,21 +1,16 @@
-
 pipeline {
     agent any
 
     environment {
         AWS_DEFAULT_REGION = 'ap-south-1'
-        BUILD_DATE = sh(script: "date +'%d%b%Y'", returnStdout: true).trim() // Dynamically fetch the current build date
-        //DIST_FILE = "dist-dev-${sh(script: 'date +\"%d%b%Y\"', returnStdout: true).trim()}-new.tar.gz"
+        BUILD_DATE = "${new Date().format('ddMMMyyyy')}"
         BUILD_DIR = "/home/ubuntu"
-        //DIST_FILE = '' // Placeholder, will be set dynamically
-      //  DIST_FILE = "env.DIST_FILE"
+        DIST_FILE = "dist-dev-${sh(script: 'date +\"%d%b%Y\"', returnStdout: true).trim()}-new.tar.gz"
         FRONTEND_SERVER = 'ec2-65-2-170-67.ap-south-1.compute.amazonaws.com'
-        CREDENTIALS_ID = 'ansible-ssh-key'
+        CREDENTIALS_ID = 'CREDENTIALS_ID'
         S3_BUCKET = 'pinga-builds'
         SSH_KEY_PATH = '/home/ubuntu/vkey.pem'
         SLACK_CHANNEL = "jenkins"
-        DEPLOY_ENV = "${params.ENVIRONMENT}"
-        SHELL = '/bin/bash'
     }
 
     parameters {
@@ -92,56 +87,55 @@ pipeline {
         }
 
         stage('Handle SVN Checkout/Update') {
-    steps {
-        script {
-            if (params.UPDATE_SVN) {
-                echo "[INFO] UPDATE_SVN is enabled. Checking SVN directory..."
-                
-                // Define SVN URL and local directory
-                def svnUrl = "https://extsvn.pingacrm.com/svn/pingacrm-frontend-new/trunk"
-                def svnDir = "/home/ubuntu/pinga/trunk"
+            steps {
+                script {
+                    if (params.UPDATE_SVN) {
+                        echo "[INFO] UPDATE_SVN is enabled. Checking SVN directory..."
+                        
+                        // Define SVN URL and local directory
+                        def svnUrl = "https://extsvn.pingacrm.com/svn/pingacrm-frontend-new/trunk"
+                        def svnDir = "/home/ubuntu/pinga/trunk"
 
-                withCredentials([usernamePassword(credentialsId: 'svn-credentials-id', 
-                                                  usernameVariable: 'SVN_USER', 
-                                                  passwordVariable: 'SVN_PASS')]) {
-                    // Check if the SVN directory exists
-                    def dirExists = sh(script: "if [ -d ${svnDir} ]; then echo exists; else echo not_exists; fi", returnStdout: true).trim()
-                    
-                    if (dirExists == "exists") {
-                        echo "[INFO] SVN directory exists. Performing svn update..."
-                        sh """
-                        svn update --username ${SVN_USER} --password ${SVN_PASS} ${svnDir} || exit 1
-                        """
+                        withCredentials([usernamePassword(credentialsId: 'svn-credentials-id', 
+                                                          usernameVariable: 'SVN_USER', 
+                                                          passwordVariable: 'SVN_PASS')]) {
+                            // Check if the SVN directory exists
+                            def dirExists = sh(script: "if [ -d ${svnDir} ]; then echo exists; else echo not_exists; fi", returnStdout: true).trim()
+                            
+                            if (dirExists == "exists") {
+                                echo "[INFO] SVN directory exists. Performing svn update..."
+                                sh """
+                                svn update --username ${SVN_USER} --password ${SVN_PASS} ${svnDir}
+                                """
+                            } else {
+                                echo "[INFO] SVN directory does not exist. Performing fresh svn checkout..."
+                                sh """
+                                svn checkout --username ${SVN_USER} --password ${SVN_PASS} ${svnUrl} ${svnDir}
+                                """
+                            }
+                        }
+                        echo "[INFO] SVN operation completed successfully."
                     } else {
-                        echo "[INFO] SVN directory does not exist. Performing fresh svn checkout..."
-                        sh """
-                        svn checkout --username ${SVN_USER} --password ${SVN_PASS} ${svnUrl} ${svnDir} || exit 1
-                        """
+                        echo "[INFO] UPDATE_SVN is disabled. Skipping SVN operations."
                     }
                 }
-
-                echo "[INFO] SVN operation completed successfully."
-            } else {
-                echo "[INFO] UPDATE_SVN is disabled. Skipping SVN operations."
             }
         }
-    }
-}
 
-    stage('Clean Old Build Files') {
-        steps {
-            echo "[INFO] Cleaning up old build files from previous deployments."
-            sh "sudo rm -rf /home/ubuntu/pinga/trunk/dist || exit 1"
-            echo "[INFO] Old build files removed."
+        stage('Clean Old Build Files') {
+            steps {
+                echo "[INFO] Cleaning up old build files from previous deployments."
+                sh "sudo rm -rf /home/ubuntu/pinga/trunk/dist"
+                echo "[INFO] Old build files removed."
+            }
         }
-    }
 
         stage('Copy Environment-Specific Configuration File') {
             steps {
                 echo "[INFO] Copying environment-specific configuration file."
                 script {
                     def configFilePath = "/home/ubuntu/data.service.ts.${params.ENVIRONMENT}"
-                    sh "cp ${configFilePath} /home/ubuntu/pinga/trunk/src/app/service/data.service.ts || exit 1"
+                    sh "cp ${configFilePath} /home/ubuntu/pinga/trunk/src/app/service/data.service.ts"
                 }
                 echo "[INFO] Configuration file copied successfully."
             }
@@ -153,151 +147,149 @@ pipeline {
                     echo "[INFO] Installing dependencies and preparing build."
                     sh '''
                         rm -rf node_modules package-lock.json
-                        npm install --legacy-peer-deps || exit 1
+                        npm install --legacy-peer-deps
                         npm audit fix || echo "Audit fix failed; ignoring remaining issues."
                         npm audit fix --force || echo "Force audit fix failed."
-                        npm run build || exit 1
+                        npm run build
                         echo "[INFO] Build process completed successfully."
                     '''
                 }
             }
         }
 
-        stage('Setup Build Variables') {
-            steps {
-                script {
-                    // Generate the build date in the desired format
-                    def BUILD_DATE = sh(script: "date +'%d%b%Y'", returnStdout: true).trim()
-                    
-                    // Dynamically set DIST_FILE
-                    def DIST_FILE = "dist-${params.ENVIRONMENT}-${BUILD_DATE}-new.tar.gz"
-                    
-                    // Logging
-                    echo "[INFO] Selected Environment: ${params.ENVIRONMENT}"
-                    echo "[INFO] Build Date: ${BUILD_DATE}"
-                    echo "[INFO] Dist File: ${DIST_FILE}"
-
-                    // Set DIST_FILE as an environment variable to be used in later stages
-                    env.DIST_FILE = DIST_FILE
-                }
-            }
-        }
-        
         stage('Compress & Upload Build Artifacts') {
             steps {
                 dir("${env.BUILD_DIR}/pinga/trunk") {
                     echo "[INFO] Compressing and uploading build artifacts..."
                     script {
-                        // Use DIST_FILE from the previous step
-                        def TAR_PATH = "${env.BUILD_DIR}/${env.DIST_FILE}"
+                        def DIST_FILE = "dist-${params.ENVIRONMENT}-${env.BUILD_DATE}-new.tar.gz"
+                        def TAR_PATH = "${env.BUILD_DIR}/${DIST_FILE}"
+                        sh "sudo tar -czvf ${TAR_PATH} dist"
                         
-                        // Compress the build artifacts
-                        sh "sudo tar -czvf ${TAR_PATH} dist || exit 1"
-                        
-                        // Upload to S3
-                        sh """
-                            aws s3 cp ${TAR_PATH} s3://${env.S3_BUCKET}/${env.DIST_FILE} || \
-                            { echo '[ERROR] S3 upload failed'; exit 1; }
-                        """
-                        echo "[INFO] Build artifact uploaded to S3 as: ${env.DIST_FILE}"
+                        retry(3) {
+                            sh """aws s3 cp ${TAR_PATH} s3://pinga-builds/${env.DIST_FILE}"""
+                        }
+                        echo "[INFO] Build artifact uploaded to S3."
                     }
                 }
             }
         }
 
-        stage('Deploy with Ansible') {
+        stage('Verify Server Availability') {
             steps {
-                script {
-                    ansiblePlaybook(
-                        playbook: '/home/jenkins/ansible/deploy.yml', // Absolute path to deploy.yml
-                        inventory: '/home/jenkins/ansible/inventory.ini', // Absolute path to inventory.ini
-                        extraVars: [
-                            environment: params.ENVIRONMENT,
-                            artifact_name: env.DIST_FILE
-                        ],
-                        credentialsId: 'ansible-ssh-key'
-                    )
+                sshagent(credentials: [env.CREDENTIALS_ID]) {
+                    sh """
+                    ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "echo [INFO] Server is reachable."
+                    """
+                    echo "[INFO] Deployment process started..."
                 }
             }
         }
 
-        stage('Smoke Tests') {
+        stage('Stop Apache') {
             steps {
-                script {
-                    echo "[INFO] Running smoke tests..."
-                    sshagent(credentials: [env.CREDENTIALS_ID]) {
-                        sh """
+                sshagent(credentials: [env.CREDENTIALS_ID]) {
+                    sh """
                         ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
-                        echo \"[INFO] Running smoke tests for application...\"
+                            echo '[INFO] Stopping Apache...';
+                            sudo service apache2 stop
+                        "
+                    """
+                }
+            }
+        }
 
-                        # Check application health
-                        curl -sSf https://crmdev.pingacrm.com | grep -q \"<title>Pinga CRM</title>\" || { echo \"[ERROR] Smoke test failed: Content validation failed\"; exit 1; }
+        stage('Download Build from S3') {
+            steps {
+                sshagent(credentials: [env.CREDENTIALS_ID]) {
+                    sh """
+                        echo '[INFO] Downloading the new build from S3...'
+                        aws s3 cp s3://${S3_BUCKET}/${env.DIST_FILE} .
+                    """
+                }
+            }
+        }
 
-                        # Add more endpoints if needed
-                        echo \"[INFO] Smoke tests passed successfully.\"
-                         "
-                        """
-                    }
+        stage('Backup Old Build') {
+            steps {
+                sshagent(credentials: [env.CREDENTIALS_ID]) {
+                    sh """
+                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
+                            echo '[INFO] Renaming old dist directory...';
+                            if [ -d /var/www/html/pinga ]; then
+                                BACKUP_DIR='/var/www/html/pinga-backup-\$(date +%d%b%Y%H%M%S)'
+                                sudo mv /var/www/html/pinga \$BACKUP_DIR
+                            fi
+                        "
+                    """
+                }
+            }
+        }
+
+        stage('Prepare Deployment') {
+            steps {
+                sshagent(credentials: [env.CREDENTIALS_ID]) {
+                    sh """
+                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
+                            echo '[INFO] Ensuring deployment directory exists...';
+                            mkdir -p /tmp/${params.ENVIRONMENT}-dist
+                            echo '[INFO] Unzipping the new build...';
+                            tar -xvf ${env.DIST_FILE} -C /tmp/${params.ENVIRONMENT}-dist
+                        "
+                    """
+                }
+            }
+        }
+
+        stage('Deploy New Build') {
+            steps {
+                sshagent(credentials: [env.CREDENTIALS_ID]) {
+                    sh """
+                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
+                            echo '[INFO] Removing old deployment...';
+                            sudo rm -rf /var/www/html/pinga
+                            echo '[INFO] Deploying new build...';
+                            sudo mv /tmp/${params.ENVIRONMENT}-dist/dist/* /var/www/html/pinga
+                            echo '[INFO] Updating permissions...';
+                            sudo chown -R www-data:www-data /var/www
+                        "
+                    """
+                }
+            }
+        }
+
+        stage('Smoke Test') {
+            steps {
+                script {
+                    def smokeTestUrl = "http://${env.FRONTEND_SERVER}/health"
+                    echo "[INFO] Running smoke test at ${smokeTestUrl}"
+                    sh """
+                        curl --max-time 30 --fail --silent ${smokeTestUrl} || exit 1
+                    """
+                }
+            }
+        }
+
+        stage('Clean Up') {
+            steps {
+                echo "[INFO] Cleaning up temporary files."
+                sh "rm -rf /tmp/${params.ENVIRONMENT}-dist"
+            }
+        }
+
+        stage('Notify Slack') {
+            steps {
+                script {
+                    def message = "Deployment of ${params.ENVIRONMENT} build completed successfully!"
+                    slackSend(channel: env.SLACK_CHANNEL, color: 'good', message: message)
                 }
             }
         }
     }
 
     post {
-        success {
-            script {
-                echo "[INFO] Deployment completed successfully. Sending success notification..."
-                // Send Email Notification
-                emailext(
-                    subject: "PingaCRM Deployment Successful",
-                    body: """
-                    Deployment for ${params.ENVIRONMENT} completed successfully at ${new Date()}.
-                    Check the application: https://crmdev.pingacrm.com
-                    """,
-                    recipientProviders: [[$class: 'DevelopersRecipientProvider']]
-                )
-
-                // Send Slack Notification (if configured)
-                slackSend(
-                    color: 'good',
-                    message: "PingaCRM Deployment Successful for ${params.ENVIRONMENT} :white_check_mark:"
-                )
-            }
-        }
-
         failure {
-            script {
-                echo "[ERROR] Deployment failed. Initiating rollback and sending failure notification..."
-                // Rollback logic
-                sshagent(credentials: [CREDENTIALS_ID]) {
-                    sh '''
-                        ssh -i /home/ubuntu/vkey.pem ubuntu@${env.FRONTEND_SERVER} << EOF
-                        sudo service apache2 stop || exit 1
-                        if [ -d /var/www/html/pinga-backup-${env.BUILD_DATE} ]; then
-                            sudo rm -rf /var/www/html/pinga || exit 1
-                            sudo mv /var/www/html/pinga-backup-${env.BUILD_DATE} /var/www/html/pinga || exit 1
-                        fi
-                        sudo service apache2 start || exit 1
-                        EOF
-                    '''
-                }
-
-                // Send Email Notification
-                emailext(
-                    subject: "PingaCRM Deployment Failed",
-                    body: """
-                    Deployment for ${params.ENVIRONMENT} failed. Rollback has been initiated.
-                    Please check the Jenkins logs for details.
-                    """,
-                    recipientProviders: [[$class: 'DevelopersRecipientProvider']]
-                )
-
-                // Send Slack Notification (if configured)
-                slackSend(
-                    color: 'danger',
-                    message: "PingaCRM Deployment Failed for ${params.ENVIRONMENT}. Rollback initiated. :x:"
-                )
-            }
+            slackSend(channel: env.SLACK_CHANNEL, color: 'danger', message: "Deployment failed for ${params.ENVIRONMENT}. Please investigate.")
         }
     }
 }

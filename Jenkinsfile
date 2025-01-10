@@ -200,7 +200,8 @@ pipeline {
             steps {
                 sshagent(credentials: [env.CREDENTIALS_ID]) {
                     sh """
-                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
+                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} 
+                        "
                             echo '[INFO] Downloading the new build from S3...';
                             aws s3 cp s3://${S3_BUCKET}/${env.DIST_FILE} . || { echo '[ERROR] S3 download failed'; exit 1; }
                         "

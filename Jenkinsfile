@@ -299,51 +299,54 @@ pipeline {
 
         // Correct placement of the Smoke Tests stage within the 'stages' block
         stage('Smoke Tests') {
-    steps {
-        script {
-            echo "[INFO] Running smoke tests..."
-            sshagent(credentials: [env.CREDENTIALS_ID]) {
-                sh """
-                    ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
-                        echo '[INFO] Running smoke tests for application...';
-                        
-                        # Check application health
-                        if curl -sSf https://crmdev.pingacrm.com | grep -q '<title>Pinga CRM</title>'; then
-                            echo '[INFO] Smoke test passed: Application is healthy.';
-                        else
-                            echo '[ERROR] Smoke test failed: Content validation failed.'; exit 1;
-                        fi
-                        
-                        # Add more tests if needed
-                    "
-                """
+            steps {
+                script {
+                    echo "[INFO] Running smoke tests..."
+                    sshagent(credentials: [env.CREDENTIALS_ID]) {
+                        sh """
+                            ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
+                                echo '[INFO] Running smoke tests for application...';
+                                curl -sSf https://crmdev.pingacrm.com | grep -q '<title>Pinga CRM</title>' || { echo '[ERROR] Smoke test failed'; exit 1; }
+                                echo '[INFO] Smoke tests passed successfully.';
+                            "
+                        """
+                    }
+                }
             }
         }
     }
-}
 
     post {
         success {
             script {
                 echo "[INFO] Deployment completed successfully. Sending success notification..."
-                // Send Email Notification
                 emailext(
                     subject: "PingaCRM Deployment Successful",
-                    body: """
-                    Deployment for ${params.ENVIRONMENT} completed successfully at ${new Date()}.
-                    Check the application: https://crmdev.pingacrm.com
-                    """,
+                    body: "Deployment for ${params.ENVIRONMENT} completed successfully.",
                     recipientProviders: [[$class: 'DevelopersRecipientProvider']]
                 )
-
-                // Send Slack Notification (if configured)
                 slackSend(
                     color: 'good',
                     message: "PingaCRM Deployment Successful for ${params.ENVIRONMENT} :white_check_mark:"
                 )
             }
         }
-    }
+
+        failure {
+            script {
+                echo "[ERROR] Deployment failed. Sending failure notification..."
+                emailext(
+                    subject: "PingaCRM Deployment Failed",
+                    body: "Deployment for ${params.ENVIRONMENT} failed. Please check Jenkins logs.",
+                    recipientProviders: [[$class: 'DevelopersRecipientProvider']]
+                )
+                slackSend(
+                    color: 'danger',
+                    message: "PingaCRM Deployment Failed for ${params.ENVIRONMENT}. :x:"
+                )
+            }
+        }
+   
 
         failure {
             script {
@@ -362,23 +365,5 @@ pipeline {
                     '''
                 }
             }
-    
-
-                // Send Email Notification
-                emailext(
-                    subject: "PingaCRM Deployment Failed",
-                    body: """
-                    Deployment for ${params.ENVIRONMENT} failed. Rollback has been initiated.
-                    Please check the Jenkins logs for details.
-                    """,
-                    recipientProviders: [[$class: 'DevelopersRecipientProvider']]
-                )
-
-                // Send Slack Notification (if configured)
-                slackSend(
-                    color: 'danger',
-                    message: "PingaCRM Deployment Failed for ${params.ENVIRONMENT}. Rollback initiated. :x:"
-                )
-            }
-    }
+        }
 }

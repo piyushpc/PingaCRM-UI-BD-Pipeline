@@ -346,7 +346,8 @@ pipeline {
                 )
             }
         }
-   
+    }
+}
 
         failure {
             script {
@@ -366,4 +367,3 @@ pipeline {
                 }
             }
         }
-}

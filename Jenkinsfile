@@ -211,20 +211,21 @@ pipeline {
         }
 
         stage('Backup Old Build') {
-            steps {
-                sshagent(credentials: [env.CREDENTIALS_ID]) {
-                    sh """
-                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
-                            echo '[INFO] Renaming old dist directory...';
-                            if [ -d /var/www/html/pinga ]; then
-                                BACKUP_DIR="/var/www/html/pinga-backup-$(date +%d%b%Y%H%M%S)"
-                                sudo mv /var/www/html/pinga $BACKUP_DIR || { echo '[ERROR] Backup failed'; exit 1; }
-                            fi
-                        "
-                    """
-                }
-            }
+    steps {
+        sshagent(credentials: [env.CREDENTIALS_ID]) {
+            sh """
+                ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
+                    echo '[INFO] Renaming old dist directory...';
+                    if [ -d /var/www/html/pinga ]; then
+                        BACKUP_DIR='/var/www/html/pinga-backup-\$(date +\%d\%b\%Y\%H\%M\%S)'
+                        sudo mv /var/www/html/pinga \$BACKUP_DIR || { echo '[ERROR] Backup failed'; exit 1; }
+                    fi
+                "
+            """
         }
+    }
+}
+
 
         stage('Prepare Deployment') {
             steps {

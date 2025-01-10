@@ -249,7 +249,6 @@ pipeline {
                 }
             }
         }
-    }
 
         stage('Deploy New Build') {
             steps {

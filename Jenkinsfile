@@ -214,9 +214,9 @@ pipeline {
     steps {
         sshagent(['ubuntu']) {
             sh '''
-                BACKUP_DIR="/var/www/html/pinga-backup-$(date +%d%b%Y%H%M%S)"
                 echo "[INFO] Renaming old dist directory..."
                 ssh -o StrictHostKeyChecking=no -i /home/ubuntu/vkey.pem ubuntu@ec2-65-2-170-67.ap-south-1.compute.amazonaws.com << EOF
+                    BACKUP_DIR="/var/www/html/pinga-backup-$(date +%d%b%Y%H%M%S)"
                     if [ -d /var/www/html/pinga ]; then
                         echo "[INFO] Backing up old build to $BACKUP_DIR"
                         sudo mv /var/www/html/pinga $BACKUP_DIR
@@ -230,20 +230,21 @@ pipeline {
 }
 
 
+
         stage('Prepare Deployment') {
             steps {
-                sshagent(credentials: [env.CREDENTIALS_ID]) {
-                    script {
+                script {
                     sh """
-                        ssh -o StrictHostKeyChecking=no -i /home/ubuntu/vkey.pem ubuntu@ec2-65-2-170-67.ap-south-1.compute.amazonaws.com "
-                        echo '[INFO] Renaming old dist directory...';
-                        if [ -d /var/www/html/pinga ]; then
-                            BACKUP_DIR='/var/www/html/pinga-backup-$(date +%d%b%Y%H%M%S)'
-                            sudo mv /var/www/html/pinga \$BACKUP_DIR
-                            echo '[INFO] Moved old directory to \$BACKUP_DIR';
-                        else
-                            echo '[INFO] No old dist directory found.';
-                        fi
+                        ssh -o StrictHostKeyChecking=no -i ${env.PEM_KEY} ubuntu@${env.EC2_HOST} << EOF
+                            echo '[INFO] Renaming old dist directory...';
+                            BACKUP_DIR="/var/www/html/pinga-backup-\$(date +%d%b%Y%H%M%S)";
+                            if [ -d /var/www/html/pinga ]; then
+                                echo "Moving /var/www/html/pinga to \$BACKUP_DIR...";
+                                sudo mv /var/www/html/pinga \$BACKUP_DIR;
+                            else
+                                echo "/var/www/html/pinga does not exist, skipping backup.";
+                            fi
+                        EOF
                     """
                 }
             }

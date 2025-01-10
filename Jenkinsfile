@@ -10,7 +10,7 @@ pipeline {
         //DIST_FILE = '' // Placeholder, will be set dynamically
       //  DIST_FILE = "env.DIST_FILE"
         FRONTEND_SERVER = 'ec2-13-201-125-229.ap-south-1.compute.amazonaws.com'
-        CREDENTIALS_ID = 'CREDENTIALS_ID'
+        CREDENTIALS_ID = 'ansible-ssh-key'
         S3_BUCKET = 'pinga-builds'
         SSH_KEY_PATH = '/home/ubuntu/vkey.pem'
         SLACK_CHANNEL = "jenkins"

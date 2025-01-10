@@ -211,20 +211,24 @@ pipeline {
         }
 
         stage('Backup Old Build') {
-            steps {
-                sshagent(credentials: [env.CREDENTIALS_ID]) {
-                    sh """
-                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
-                            echo '[INFO] Renaming old dist directory...';
-                            if [ -d /var/www/html/pinga ]; then
-                                BACKUP_DIR='/var/www/html/pinga-backup-\$(date +%d%b%Y%H%M%S)'
-                                sudo mv /var/www/html/pinga \$BACKUP_DIR
-                            fi
-                        "
-                    """
-                }
-            }
+    steps {
+        sshagent(['ubuntu']) {
+            sh '''
+                BACKUP_DIR="/var/www/html/pinga-backup-$(date +%d%b%Y%H%M%S)"
+                echo "[INFO] Renaming old dist directory..."
+                ssh -o StrictHostKeyChecking=no -i /home/ubuntu/vkey.pem ubuntu@ec2-65-2-170-67.ap-south-1.compute.amazonaws.com << EOF
+                    if [ -d /var/www/html/pinga ]; then
+                        echo "[INFO] Backing up old build to $BACKUP_DIR"
+                        sudo mv /var/www/html/pinga $BACKUP_DIR
+                    else
+                        echo "[INFO] No existing build to back up"
+                    fi
+                EOF
+            '''
         }
+    }
+}
+
 
         stage('Prepare Deployment') {
             steps {

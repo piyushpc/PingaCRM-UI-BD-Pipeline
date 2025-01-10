@@ -205,168 +205,24 @@ pipeline {
             }
         }
 
-        stage('Verify Server Availability') {
-            steps {
-                sshagent(credentials: [env.CREDENTIALS_ID]) {
-                    sh """
-                    ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "echo [INFO] Server is reachable."
-                    """
-                    echo "[INFO] Deployment process started..."
-                }
-            }
-        }
-
-        stage('Stop Apache') {
-    steps {
-        sshagent(credentials: [env.CREDENTIALS_ID]) {
-            sh """
-                ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
-                    echo '[INFO] Stopping Apache...';
-                    sudo service apache2 stop || { echo '[ERROR] Failed to stop Apache'; exit 1; }
-                "
-            """
-        }
-    }
-}
-        
-        stage('Set DIST_FILE Dynamically') {
-    steps {
-        script {
-            def s3ListOutput = sh(
-                script: "aws s3 ls s3://${S3_BUCKET}/ --region ${AWS_DEFAULT_REGION}",
-                returnStdout: true
-            ).trim()
-            echo "S3 Bucket Contents:\n${s3ListOutput}"
-
-            def latestFile = sh(
-                script: """
-                    aws s3 ls s3://${S3_BUCKET}/ --region ${AWS_DEFAULT_REGION} | \
-                    grep '.tar.gz' | sort | tail -n 1 | awk '{print \$4}'
-                """,
-                returnStdout: true
-            ).trim()
-
-            if (latestFile) {
-                echo "Latest file in S3 bucket: ${latestFile}"
-                env.DIST_FILE = latestFile
-            } else {
-                error "No matching files found in S3 bucket: ${S3_BUCKET}"
-            }
-        }
-    }
-}
-        
-        stage('Download Build from S3') {
-    steps {
-        sshagent(credentials: [env.CREDENTIALS_ID]) {
-            script {
-                echo "[INFO] Attempting to download the build file: ${env.DIST_FILE} from S3 bucket: ${S3_BUCKET}"
-                def downloadResult = sh(
-                    script: """
-                    aws s3 cp s3://${S3_BUCKET}/${env.DIST_FILE} ${env.BUILD_DIR} || echo '[ERROR] S3 download failed'
-                    """,
-                    returnStatus: true
-                )
-                if (downloadResult != 0) {
-                    error "[ERROR] Failed to download ${env.DIST_FILE} from S3. Check if the file exists or permissions are correct."
-                }
-                sh 'ls -lh ${env.BUILD_DIR}'
-                echo "[INFO] Build file downloaded successfully."
-            }
-        }
-    }
-}
-
-
-        stage('Backup Old Build') {
-            steps {
-                sshagent(credentials: [env.CREDENTIALS_ID]) {
-                    sh """
-                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
-                            echo '[INFO] Renaming old dist directory...';
-                            if [ -d /var/www/html/pinga ]; then
-                                sudo mv /var/www/html/pinga '/var/www/html/pinga-backup-${BUILD_DATE}' || { echo '[ERROR] Backup failed'; exit 1; }
-                            fi
-                        "
-                    """
-                }
-            }
-        }
-
-
-
-        stage('Prepare Deployment') {
-            steps {
-                sshagent(credentials: [env.CREDENTIALS_ID]) {
-                    sh """
-                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
-                            echo '[INFO] Ensuring deployment directory exists...';
-                            mkdir -p /tmp/${params.ENVIRONMENT}-dist || { echo '[ERROR] Failed to create directory'; exit 1; }
-
-                            echo '[INFO] Unzipping the new build...';
-                            tar -xvf ${env.DIST_FILE} -C /tmp/${params.ENVIRONMENT}-dist || { echo '[ERROR] Unzipping failed'; exit 1; }
-                        "
-                    """
-                }
-            }
-        }
-
-        stage('Deploy New Build') {
-            steps {
-                sshagent(credentials: [env.CREDENTIALS_ID]) {
-                    sh """
-                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
-                            echo '[INFO] Removing old deployment...';
-                            sudo rm -rf /var/www/html/pinga || { echo '[ERROR] Failed to remove old deployment'; exit 1; }
-
-                            echo '[INFO] Deploying new build...';
-                            sudo mv /tmp/${params.ENVIRONMENT}-dist/dist/* /var/www/html/pinga || { echo '[ERROR] Deployment failed'; exit 1; }
-
-                            echo '[INFO] Updating permissions...';
-                            sudo chown -R www-data:www-data /var/www || { echo '[ERROR] Failed to update permissions'; exit 1; }
-                        "
-                    """
-                }
-            }
-        }
-
-        stage('Start Apache') {
-            steps {
-                sshagent(credentials: [env.CREDENTIALS_ID]) {
-                    sh """
-                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
-                            echo '[INFO] Starting Apache...';
-                            sudo service apache2 start || { echo '[ERROR] Failed to start Apache'; exit 1; }
-                        "
-                    """
-                }
-            }
-        }
-
-        stage('Cleanup') {
-            steps {
-                sshagent(credentials: [env.CREDENTIALS_ID]) {
-                    sh """
-                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
-                            echo '[INFO] Cleaning up temporary directories...';
-                            sudo rm -rf /tmp/${params.ENVIRONMENT}-dist || { echo '[ERROR] Failed to clean up temporary directories'; exit 1; }
-                        "
-                    """
-                }
-            }
-        }
-
-        stage('Finalize') {
+         stage('Deploy with Ansible') {
             steps {
                 script {
-                    if (currentBuild.result == 'FAILURE') {
-                        echo "[ERROR] Deployment process encountered errors."
-                    } else {
-                        echo "[INFO] Deployment process completed successfully."
-                    }
+                    ansiblePlaybook(
+                        playbook: 'deploy.yml',
+                        inventory: 'inventory.ini',
+                        extraVars: [
+                            environment: params.ENVIRONMENT,
+                            artifact_name: env.DIST_FILE
+                        ],
+                        credentialsId: 'ansible-ssh-key'
+                    )
                 }
             }
         }
+    }
+}
+
 
         // Correct placement of the Smoke Tests stage within the 'stages' block
         stage('Smoke Tests') {

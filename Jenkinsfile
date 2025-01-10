@@ -201,11 +201,9 @@ pipeline {
     steps {
         sshagent(credentials: [env.CREDENTIALS_ID]) {
             sh """
-                ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} <<EOF
-                    echo '[INFO] Downloading the new build from S3...'
+                echo '[INFO] Downloading the new build from S3...'
                     aws s3 cp s3://pinga-builds/dist-dev-10Jan2025-new.tar.gz . || { echo '[ERROR] S3 download failed'; exit 1; }
-                EOF
-            """
+                """
         }
     }
 }

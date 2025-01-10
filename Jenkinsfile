@@ -205,7 +205,6 @@ pipeline {
             }
         }
 
-         stages {
         stage('Deploy with Ansible') {
             steps {
                 script {
@@ -301,5 +300,3 @@ pipeline {
             }
         }
     }
-}
-}

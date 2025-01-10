@@ -380,3 +380,5 @@ pipeline {
                     message: "PingaCRM Deployment Failed for ${params.ENVIRONMENT}. Rollback initiated. :x:"
                 )
             }
+    }
+}

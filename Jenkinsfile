@@ -229,17 +229,23 @@ pipeline {
         stage('Prepare Deployment') {
             steps {
                 sshagent(credentials: [env.CREDENTIALS_ID]) {
+                    script {
                     sh """
                         ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
-                            echo '[INFO] Ensuring deployment directory exists...';
-                            mkdir -p /tmp/${params.ENVIRONMENT}-dist
-                            echo '[INFO] Unzipping the new build...';
-                            tar -xvf ${env.DIST_FILE} -C /tmp/${params.ENVIRONMENT}-dist
-                        "
+                            echo '[INFO] Renaming old dist directory...';
+                            BACKUP_DIR="/var/www/html/pinga-backup-\$(date +%d%b%Y%H%M%S)";
+                            if [ -d /var/www/html/pinga ]; then
+                                echo "Moving /var/www/html/pinga to \$BACKUP_DIR...";
+                                sudo mv /var/www/html/pinga \$BACKUP_DIR;
+                            else
+                                echo "/var/www/html/pinga does not exist, skipping backup.";
+                            fi
+                        EOF
                     """
                 }
             }
         }
+    }
 
         stage('Deploy New Build') {
             steps {

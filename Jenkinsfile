@@ -216,7 +216,8 @@ pipeline {
                         ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
                             echo '[INFO] Renaming old dist directory...';
                             if [ -d /var/www/html/pinga ]; then
-                                sudo mv /var/www/html/pinga '/var/www/html/pinga-backup-${BUILD_DATE}' || { echo '[ERROR] Backup failed'; exit 1; }
+                                BACKUP_DIR="/var/www/html/pinga-backup-$(date +%d%b%Y%H%M%S)"
+                                sudo mv /var/www/html/pinga $BACKUP_DIR || { echo '[ERROR] Backup failed'; exit 1; }
                             fi
                         "
                     """

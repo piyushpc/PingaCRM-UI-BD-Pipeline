@@ -317,7 +317,7 @@ pipeline {
                             sudo mv /tmp/${params.ENVIRONMENT}-dist/dist/* /var/www/html/pinga || { echo '[ERROR] Deployment failed'; exit 1; }
 
                             echo '[INFO] Updating permissions...';
-                            sudo chown -R www-data:www-data /var/www/html/pinga || { echo '[ERROR] Failed to update permissions'; exit 1; }
+                            sudo chown -R www-data:www-data /var/www || { echo '[ERROR] Failed to update permissions'; exit 1; }
                         "
                     """
                 }

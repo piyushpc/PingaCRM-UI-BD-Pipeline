@@ -244,7 +244,6 @@ pipeline {
                         else
                             echo '[INFO] No old dist directory found.';
                         fi
-                        "
                     """
                 }
             }

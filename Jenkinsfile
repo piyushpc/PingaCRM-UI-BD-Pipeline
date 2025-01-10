@@ -9,7 +9,7 @@ pipeline {
         BUILD_DIR = "/home/ubuntu"
         //DIST_FILE = '' // Placeholder, will be set dynamically
       //  DIST_FILE = "env.DIST_FILE"
-        FRONTEND_SERVER = 'ec2-13-201-125-229.ap-south-1.compute.amazonaws.com'
+        FRONTEND_SERVER = 'ec2-65-2-170-67.ap-south-1.compute.amazonaws.com'
         CREDENTIALS_ID = 'ansible-ssh-key'
         S3_BUCKET = 'pinga-builds'
         SSH_KEY_PATH = '/home/ubuntu/vkey.pem'
@@ -54,7 +54,7 @@ pipeline {
                     switch (params.ENVIRONMENT) {
                         case 'dev':
                             env.DIST_FILE = "dist-dev-${env.BUILD_DATE}-new.tar.gz"
-                            env.FRONTEND_SERVER = "ec2-13-201-125-229.ap-south-1.compute.amazonaws.com"
+                            env.FRONTEND_SERVER = "ec2-65-2-170-67.ap-south-1.compute.amazonaws.com"
                             env.CREDENTIALS_ID = "dev-frontend-ssh-key"
                             break
                         case 'uat':

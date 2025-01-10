@@ -214,7 +214,8 @@ pipeline {
     steps {
         sshagent(credentials: [env.CREDENTIALS_ID]) {
             sh """
-                ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
+                ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER}
+                "
                     echo '[INFO] Renaming old dist directory...';
                     if [ -d /var/www/html/pinga ]; then
                         BACKUP_DIR='/var/www/html/pinga-backup-\$(date +\%d\%b\%Y\%H\%M\%S)'

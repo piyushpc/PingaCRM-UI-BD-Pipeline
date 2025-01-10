@@ -332,22 +332,22 @@ pipeline {
             }
         }
 
-        failure {
-            script {
-                echo "[ERROR] Deployment failed. Sending failure notification..."
-                emailext(
-                    subject: "PingaCRM Deployment Failed",
-                    body: "Deployment for ${params.ENVIRONMENT} failed. Please check Jenkins logs.",
-                    recipientProviders: [[$class: 'DevelopersRecipientProvider']]
-                )
-                slackSend(
-                    color: 'danger',
-                    message: "PingaCRM Deployment Failed for ${params.ENVIRONMENT}. :x:"
-                )
-            }
-        }
-    }
-}
+    //    failure {
+      //      script {
+        //        echo "[ERROR] Deployment failed. Sending failure notification..."
+          //      emailext(
+            //        subject: "PingaCRM Deployment Failed",
+              //      body: "Deployment for ${params.ENVIRONMENT} failed. Please check Jenkins logs.",
+                //    recipientProviders: [[$class: 'DevelopersRecipientProvider']]
+              //  )
+              //  slackSend(
+                //    color: 'danger',
+                //    message: "PingaCRM Deployment Failed for ${params.ENVIRONMENT}. :x:"
+             //   )
+   //         }
+    //    }
+ //   }
+//}
 
         failure {
             script {
@@ -367,3 +367,5 @@ pipeline {
                 }
             }
         }
+    }
+}

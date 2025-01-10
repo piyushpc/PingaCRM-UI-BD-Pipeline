@@ -202,7 +202,7 @@ pipeline {
         sshagent(credentials: [env.CREDENTIALS_ID]) {
             sh """
                 echo '[INFO] Downloading the new build from S3...'
-                    aws s3 cp s3://pinga-builds/dist-dev-10Jan2025-new.tar.gz . || { echo '[ERROR] S3 download failed'; exit 1; }
+                    s3://${S3_BUCKET}/${env.DIST_FILE} . || { echo '[ERROR] S3 download failed'; exit 1; }
                 """
         }
     }

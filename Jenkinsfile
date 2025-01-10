@@ -259,14 +259,20 @@ pipeline {
         stage('Download Build from S3') {
     steps {
         sshagent(credentials: [env.CREDENTIALS_ID]) {
-            sh """
-            echo "[INFO] Downloading the new build from S3: ${env.DIST_FILE}"
-            if ! aws s3 cp s3://${S3_BUCKET}/${env.DIST_FILE} .; then
-                echo "[ERROR] S3 download failed but continuing..."
-                exit 1
-            fi
-            echo "[INFO] Successfully downloaded: ${env.DIST_FILE}"
-            """
+            script {
+                echo "[INFO] Attempting to download the build file: ${env.DIST_FILE} from S3 bucket: ${S3_BUCKET}"
+                def downloadResult = sh(
+                    script: """
+                    aws s3 cp s3://${S3_BUCKET}/${env.DIST_FILE} ${env.BUILD_DIR} || echo '[ERROR] S3 download failed'
+                    """,
+                    returnStatus: true
+                )
+                if (downloadResult != 0) {
+                    error "[ERROR] Failed to download ${env.DIST_FILE} from S3. Check if the file exists or permissions are correct."
+                }
+                sh 'ls -lh ${env.BUILD_DIR}'
+                echo "[INFO] Build file downloaded successfully."
+            }
         }
     }
 }

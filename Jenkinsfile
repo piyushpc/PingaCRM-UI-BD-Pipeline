@@ -6,7 +6,7 @@ pipeline {
         BUILD_DATE = "${new Date().format('ddMMMyyyy')}"
         BUILD_DIR = "/home/ubuntu"
         DIST_FILE = "dist-dev-${sh(script: 'date +\"%d%b%Y\"', returnStdout: true).trim()}-new.tar.gz"
-        FRONTEND_SERVER = 'ec2-13-232-186-66.ap-south-1.compute.amazonaws.com'
+        FRONTEND_SERVER = 'ec2-3-109-179-70.ap-south-1.compute.amazonaws.com'
         CREDENTIALS_ID = 'CREDENTIALS_ID'
         S3_BUCKET = 'pinga-builds'
         SSH_KEY_PATH = '/var/lib/jenkins/.ssh/vkey.pem'
@@ -49,7 +49,7 @@ pipeline {
                     switch (params.ENVIRONMENT) {
                         case 'dev':
                             env.DIST_FILE = "dist-dev-${env.BUILD_DATE}-new.tar.gz"
-                            env.FRONTEND_SERVER = "ec2-13-232-186-66.ap-south-1.compute.amazonaws.com"
+                            env.FRONTEND_SERVER = "ec2-3-109-179-70.ap-south-1.compute.amazonaws.com"
                             env.CREDENTIALS_ID = "dev-frontend-ssh-key"
                             break
                         case 'uat':
@@ -223,7 +223,7 @@ pipeline {
                 echo "[DEBUG] Backup directory will be: \$BACKUP_DIR"
                 
                 # SSH into the server and perform the backup
-                ssh -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/vkey.pem ubuntu@ec2-13-232-186-66.ap-south-1.compute.amazonaws.com << EOF
+                ssh -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/vkey.pem ubuntu@ec2-3-109-179-70.ap-south-1.compute.amazonaws.com << EOF
                     echo "[INFO] Checking if /var/www/html/pinga exists..."
                     
                     if [ -d /var/www/html/pinga ]; then

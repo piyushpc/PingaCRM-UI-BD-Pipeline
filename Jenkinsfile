@@ -223,7 +223,7 @@ pipeline {
                 echo "[DEBUG] Backup directory will be: \$BACKUP_DIR"
                 
                 # SSH into the server and perform the backup
-                ssh -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/vkey.pem ubuntu@ec2-35-154-21-241.ap-south-1.compute.amazonaws.com << EOF
+                ssh -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/vkey.pem ubuntu@ec2-13-232-186-66.ap-south-1.compute.amazonaws.com << EOF
                     echo "[INFO] Checking if /var/www/html/pinga exists..."
                     
                     if [ -d /var/www/html/pinga ]; then

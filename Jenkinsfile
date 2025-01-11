@@ -258,15 +258,16 @@ pipeline {
 stage('Prepare Deployment') {
     steps {
         script {
+            def backupDir = "/var/www/html/pinga-backup-${new Date().format('ddMMMyyyyHHmmss')}"
+            echo "[INFO] Backup directory: ${backupDir}"
             sh """
                 ssh -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/vkey.pem ubuntu@${env.FRONTEND_SERVER} << EOF
-                    echo '[INFO] Renaming old dist directory...'
-                    BACKUP_DIR="/var/www/html/pinga-backup-\$(date +%d%b%Y%H%M%S)"
                     if [ -d /var/www/html/pinga ]; then
-                        echo "Moving /var/www/html/pinga to \$BACKUP_DIR..."
-                        sudo mv /var/www/html/pinga \$BACKUP_DIR
+                        echo '[INFO] Found existing deployment. Backing up...'
+                        sudo mv /var/www/html/pinga ${backupDir}
+                        echo '[INFO] Backup completed: ${backupDir}'
                     else
-                        echo "/var/www/html/pinga does not exist, skipping backup."
+                        echo '[INFO] No existing deployment found. Skipping backup.'
                     fi
                 EOF
             """

@@ -9,7 +9,7 @@ pipeline {
         FRONTEND_SERVER = 'ec2-35-154-21-241.ap-south-1.compute.amazonaws.com'
         CREDENTIALS_ID = 'CREDENTIALS_ID'
         S3_BUCKET = 'pinga-builds'
-        SSH_KEY_PATH = '/home/ubuntu/vkey.pem'
+        SSH_KEY_PATH = '/var/lib/jenkins/.ssh/vkey.pem'
         SLACK_CHANNEL = "jenkins"
     }
 
@@ -215,7 +215,7 @@ pipeline {
         sshagent(['ubuntu']) {
             sh '''
                 echo "[INFO] Renaming old dist directory..."
-                ssh -o StrictHostKeyChecking=no -i /home/ubuntu/vkey.pem ubuntu@ec2-35-154-21-241.ap-south-1.compute.amazonaws.com << EOF
+                ssh -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/vkey.pem ubuntu@ec2-35-154-21-241.ap-south-1.compute.amazonaws.com << EOF
                     BACKUP_DIR="/var/www/html/pinga-backup-$(date +%d%b%Y%H%M%S)"
                     if [ -d /var/www/html/pinga ]; then
                         echo "[INFO] Backing up old build to $BACKUP_DIR"

@@ -215,15 +215,41 @@ pipeline {
         sshagent(['ubuntu']) {
             sh '''
                 echo "[INFO] Renaming old dist directory..."
+                
+                # Set backup directory path with timestamp
+                BACKUP_DIR="/var/www/html/pinga-backup-$(date +%d%b%Y%H%M%S)"
+                
+                # Log the backup directory path
+                echo "[DEBUG] Backup directory will be: $BACKUP_DIR"
+                
+                # SSH into the server and perform the backup
                 ssh -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/vkey.pem ubuntu@ec2-35-154-21-241.ap-south-1.compute.amazonaws.com << EOF
-                    BACKUP_DIR="/var/www/html/pinga-backup-$(date +%d%b%Y%H%M%S)"
+                    echo "[INFO] Checking if /var/www/html/pinga exists..."
+                    
                     if [ -d /var/www/html/pinga ]; then
-                        echo "[INFO] Backing up old build to $BACKUP_DIR"
-                        sudo mv /var/www/html/pinga $BACKUP_DIR
+                        echo "[INFO] Found /var/www/html/pinga. Proceeding with backup..."
+                        
+                        # Perform backup and log every step
+                        echo "[DEBUG] Running sudo mv command to move old build to backup..."
+                        sudo mv /var/www/html/pinga \$BACKUP_DIR
+                        
+                        if [ $? -eq 0 ]; then
+                            echo "[INFO] Backup completed successfully. Old build moved to $BACKUP_DIR"
+                        else
+                            echo "[ERROR] Backup failed during move operation. Exit code: \$?"
+                            exit 1
+                        fi
                     else
-                        echo "[INFO] No existing build to back up"
+                        echo "[INFO] No existing build found in /var/www/html/pinga. Skipping backup."
                     fi
                 EOF
+                
+                if [ $? -eq 0 ]; then
+                    echo "[INFO] Backup process completed successfully."
+                else
+                    echo "[ERROR] SSH backup command failed."
+                    exit 1
+                fi
             '''
         }
     }

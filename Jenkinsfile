@@ -251,6 +251,7 @@ pipeline {
                     echo "[ERROR] SSH backup command failed."
                     exit 1
                 fi
+                "
             '''
         }
     }

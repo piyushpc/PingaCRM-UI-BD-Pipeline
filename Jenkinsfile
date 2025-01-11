@@ -212,8 +212,9 @@ pipeline {
 
         stage('Backup Old Build') {
     steps {
-        sshagent(['ubuntu']) {
-            sh '''
+        sshagent(credentials: [env.CREDENTIALS_ID]) {
+            sh """
+                ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
                 echo "[INFO] Renaming old dist directory..."
                 
                 # Set backup directory path with timestamp

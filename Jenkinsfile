@@ -301,6 +301,19 @@ stage('Prepare Deployment') {
             }
         }
 
+        stage('Start Apache') {
+            steps {
+                sshagent(credentials: [env.CREDENTIALS_ID]) {
+                    sh """
+                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
+                            echo '[INFO] Starting Apache...';
+                            sudo service apache2 start || { echo '[ERROR] Failed to start Apache'; exit 1; }
+                        "
+                    """
+                }
+            }
+        }
+
      //   stage('Smoke Tests') {
      //       steps {
      //           script {

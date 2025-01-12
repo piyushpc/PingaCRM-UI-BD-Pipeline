@@ -265,19 +265,21 @@ stage('Prepare Deployment') {
     steps {
         script {
             sh """
-                ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} \"
+                ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} << 'EOF'
                     echo '[INFO] Renaming old dist directory...'
-                    BACKUP_DIR='/home/ubuntu/pinga-backup-\\$(date +%d%b%Y%H%M%S)'
+                    BACKUP_DIR="/home/ubuntu/pinga-backup-\$(date +%d%b%Y%H%M%S)"
                     if [ -d /var/www/html/pinga ]; then
-                        echo '[INFO] Moving /var/www/html/pinga to \\$BACKUP_DIR...'
-                        sudo mv /var/www/html/pinga \\$BACKUP_DIR
+                        echo '[INFO] Moving /var/www/html/pinga to \$BACKUP_DIR...'
+                        sudo mv /var/www/html/pinga \$BACKUP_DIR
                     else
                         echo '[INFO] /var/www/html/pinga does not exist, skipping backup.'
                     fi
-                \"
+                EOF
             """
         }
     }
+}
+
 }
 
 }

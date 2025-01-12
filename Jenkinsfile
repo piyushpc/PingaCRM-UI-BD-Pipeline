@@ -280,12 +280,6 @@ stage('Prepare Deployment') {
     }
 }
 
-}
-
-}
-
-
-
         stage('Deploy New Build') {
             steps {
                 sshagent(credentials: [env.CREDENTIALS_ID]) {

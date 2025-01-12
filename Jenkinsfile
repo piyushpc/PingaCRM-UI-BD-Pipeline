@@ -342,10 +342,11 @@ stage('Prepare Deployment') {
         }
     }
 }
-
-        post {
-            failure {
-                slackSend(channel: env.SLACK_CHANNEL, color: 'danger', message: "Deployment failed for ${params.ENVIRONMENT}. Please investigate.")
-            }
+    }
+    
+    post {
+        failure {
+            slackSend(channel: env.SLACK_CHANNEL, color: 'danger', message: "Deployment failed for ${params.ENVIRONMENT}. Please investigate.")
         }
     }
+}

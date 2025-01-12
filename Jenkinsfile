@@ -301,38 +301,46 @@ stage('Prepare Deployment') {
             }
         }
 
-        stage('Smoke Test') {
+        stage('Smoke Tests') {
             steps {
                 script {
-                    def smokeTestUrl = "http://${env.FRONTEND_SERVER}/health"
-                    echo "[INFO] Running smoke test at ${smokeTestUrl}"
-                    sh """
-                        curl --max-time 30 --fail --silent ${smokeTestUrl} || exit 1
-                    """
+                    echo "[INFO] Running smoke tests..."
+                    sshagent(credentials: [env.CREDENTIALS_ID]) {
+                        sh """
+                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
+                        echo \"[INFO] Running smoke tests for application...\"
+
+                        # Check application health
+                        curl -sSf https://crmdev.pingacrm.com | grep -q \"<title>Pinga CRM</title>\" || { echo \"[ERROR] Smoke test failed: Content validation failed\"; exit 1; }
+
+                        # Add more endpoints if needed
+                        echo \"[INFO] Smoke tests passed successfully.\"
+                         "
+                        """
+                    }
+                }
+            }
+
+            stage('Clean Up') {
+                steps {
+                    echo "[INFO] Cleaning up temporary files."
+                    sh "rm -rf /tmp/${params.ENVIRONMENT}-dist"
+                }
+            }
+
+            stage('Notify Slack') {
+                steps {
+                    script {
+                        def message = "Deployment of ${params.ENVIRONMENT} build completed successfully!"
+                        slackSend(channel: env.SLACK_CHANNEL, color: 'good', message: message)
+                    }
                 }
             }
         }
 
-        stage('Clean Up') {
-            steps {
-                echo "[INFO] Cleaning up temporary files."
-                sh "rm -rf /tmp/${params.ENVIRONMENT}-dist"
-            }
-        }
-
-        stage('Notify Slack') {
-            steps {
-                script {
-                    def message = "Deployment of ${params.ENVIRONMENT} build completed successfully!"
-                    slackSend(channel: env.SLACK_CHANNEL, color: 'good', message: message)
-                }
+        post {
+            failure {
+                slackSend(channel: env.SLACK_CHANNEL, color: 'danger', message: "Deployment failed for ${params.ENVIRONMENT}. Please investigate.")
             }
         }
     }
-
-    post {
-        failure {
-            slackSend(channel: env.SLACK_CHANNEL, color: 'danger', message: "Deployment failed for ${params.ENVIRONMENT}. Please investigate.")
-        }
-    }
-}

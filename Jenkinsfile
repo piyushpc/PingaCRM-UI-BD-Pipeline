@@ -265,7 +265,7 @@ stage('Prepare Deployment') {
     steps {
         script {
             sh """
-                ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} << EOF
+                ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} << "EOF"
                     echo '[INFO] Renaming old dist directory...'
                     BACKUP_DIR="/home/ubuntu/pinga-backup-\$(date +%d%b%Y%H%M%S)"
                     if [ -d /var/www/html/pinga ]; then
@@ -279,6 +279,7 @@ stage('Prepare Deployment') {
         }
     }
 }
+
 
 
 

@@ -203,12 +203,12 @@ pipeline {
             sh """
             echo '[INFO] Downloading the new build from S3...'
             ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
-                aws s3 cp s3://${S3_BUCKET}/${env.DIST_FILE} /tmp/${env.DIST_FILE} &&
+                aws s3 cp s3://${S3_BUCKET}/${env.DIST_FILE} /home/ubuntu/${env.DIST_FILE} &&
                 echo '[INFO] Build file downloaded successfully.' ||
                 (echo '[ERROR] Build file download failed.' && exit 1)
                 
                 echo '[INFO] Extracting the downloaded build file...'
-                tar -xvf /tmp/${env.DIST_FILE} -C /tmp/${params.ENVIRONMENT}-dist &&
+                tar -xvf /home/ubuntu/${env.DIST_FILE} -C /home/ubuntu/${params.ENVIRONMENT}-dist &&
                 echo '[INFO] Build file extracted successfully.' ||
                 (echo '[ERROR] Extraction failed.' && exit 1)
             "
@@ -229,7 +229,7 @@ pipeline {
                 echo "[DEBUG] Backup directory will be: \$BACKUP_DIR"
                 
                 # SSH into the server and perform the backup
-                ssh -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/vkey.pem ubuntu@ec2-3-109-179-70.ap-south-1.compute.amazonaws.com << EOF
+                ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} << EOF
                     echo "[INFO] Checking if /var/www/html/pinga exists..."
                     
                     if [ -d /var/www/html/pinga ]; then
@@ -290,7 +290,7 @@ stage('Prepare Deployment') {
                             echo '[INFO] Removing old deployment...';
                             sudo rm -rf /var/www/html/pinga
                             echo '[INFO] Deploying new build...';
-                            sudo mv /tmp/${params.ENVIRONMENT}-dist/dist/* /var/www/html/pinga
+                            sudo mv /home/ubuntu/${params.ENVIRONMENT}-dist/dist/* /var/www/html/pinga
                             echo '[INFO] Updating permissions...';
                             sudo chown -R www-data:www-data /var/www
                         "

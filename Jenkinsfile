@@ -330,14 +330,18 @@ stage('Prepare Deployment') {
             }
 
             stage('Notify Slack') {
-                steps {
-                    script {
-                        def message = "Deployment of ${params.ENVIRONMENT} build completed successfully!"
-                        slackSend(channel: env.SLACK_CHANNEL, color: 'good', message: message)
-                    }
-                }
-            }
+    steps {
+        script {
+            def message = "Deployment of ${params.ENVIRONMENT} build completed successfully!"
+            slackSend(
+                channel: '#your-channel', // Replace with your Slack channel
+                color: 'good',
+                message: message,
+                tokenCredentialId: 'your-slack-token-id' // Replace with the ID of your Slack credential
+            )
         }
+    }
+}
 
         post {
             failure {

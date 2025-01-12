@@ -334,10 +334,10 @@ stage('Prepare Deployment') {
         script {
             def message = "Deployment of ${params.ENVIRONMENT} build completed successfully!"
             slackSend(
-                channel: '#your-channel', // Replace with your Slack channel
+                channel: 'jenkins', // Replace with your Slack channel
                 color: 'good',
                 message: message,
-                tokenCredentialId: 'your-slack-token-id' // Replace with the ID of your Slack credential
+                tokenCredentialId: 'slack-bot-token' // Replace with the ID of your Slack credential
             )
         }
     }

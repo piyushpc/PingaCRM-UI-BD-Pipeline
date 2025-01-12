@@ -320,6 +320,7 @@ stage('Prepare Deployment') {
                     }
                 }
             }
+        }
 
             stage('Clean Up') {
                 steps {

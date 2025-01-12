@@ -6,7 +6,7 @@ pipeline {
         BUILD_DATE = "${new Date().format('ddMMMyyyy')}"
         BUILD_DIR = "/home/ubuntu"
         DIST_FILE = "dist-dev-${sh(script: 'date +\"%d%b%Y\"', returnStdout: true).trim()}-new.tar.gz"
-        FRONTEND_SERVER = 'ec2-3-109-179-70.ap-south-1.compute.amazonaws.com'
+        FRONTEND_SERVER = 'env.CREDENTIALS_ID'
         CREDENTIALS_ID = 'CREDENTIALS_ID'
         S3_BUCKET = 'pinga-builds'
         SSH_KEY_PATH = '/var/lib/jenkins/.ssh/vkey.pem'

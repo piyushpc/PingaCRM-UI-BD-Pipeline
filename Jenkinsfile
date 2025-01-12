@@ -199,17 +199,25 @@ pipeline {
             }
         }
 
-        stage('Download Build from S3') {
-            steps {
-                sshagent(credentials: [env.CREDENTIALS_ID]) {
-                    sh """
-                        echo '[INFO] Downloading the new build from S3...'
-                        aws s3 cp s3://${S3_BUCKET}/${env.DIST_FILE} .
-                    """
-                }
-            }
+        stage('Download and Extract Build from S3') {
+    steps {
+        sshagent(credentials: [env.CREDENTIALS_ID]) {
+            sh """
+            echo '[INFO] Downloading the new build from S3...'
+            ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
+                aws s3 cp s3://${S3_BUCKET}/${env.DIST_FILE} /tmp/${env.DIST_FILE} &&
+                echo '[INFO] Build file downloaded successfully.' ||
+                (echo '[ERROR] Build file download failed.' && exit 1)
+                
+                echo '[INFO] Extracting the downloaded build file...'
+                tar -xvf /tmp/${env.DIST_FILE} -C /tmp/${params.ENVIRONMENT}-dist &&
+                echo '[INFO] Build file extracted successfully.' ||
+                (echo '[ERROR] Extraction failed.' && exit 1)
+            "
+            """
         }
-
+    }
+}
         stage('Backup Old Build') {
     steps {
         sshagent(credentials: [env.CREDENTIALS_ID]) {

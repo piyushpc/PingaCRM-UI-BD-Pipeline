@@ -10,7 +10,7 @@ pipeline {
         CREDENTIALS_ID = 'CREDENTIALS_ID'
         S3_BUCKET = 'pinga-builds'
         SSH_KEY_PATH = '/var/lib/jenkins/.ssh/vkey.pem'
-        SLACK_CHANNEL = "jenkins"
+        SLACK_CHANNEL = "slack-bot-token"
     }
 
     parameters {

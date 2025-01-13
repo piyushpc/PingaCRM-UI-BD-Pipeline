@@ -359,12 +359,16 @@ pipeline {
 
                         # Restore the most recent backup
                         echo "[INFO] Restoring backup from \$BACKUP_DIR..."
-                        sudo mv "\$BACKUP_DIR" /var/www/html/pinga || { echo '[ERROR] Restore failed'; exit 1; }
+                        sudo mv "\$BACKUP_DIR" /var/www/html/ || { echo '[ERROR] Restore failed'; exit 1; }
 
                         # Update permissions
                         echo "[INFO] Updating permissions..."
                         sudo chown -R www-data:www-data /var/www || { echo '[ERROR] Permissions update failed'; exit 1; }
-                    else
+
+                        # Restart apache service
+                        echo "[INFO] Restarting Apache service..."
+                        sudo service apache2 start || { echo '[ERROR] Apache2 start failed'; exit 1; }
+                        else
                         echo "[ERROR] No backup directory found for rollback."
                         exit 1
                     fi

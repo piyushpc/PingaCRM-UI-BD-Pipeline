@@ -10,7 +10,7 @@ pipeline {
         SSH_KEY_PATH = '/var/lib/jenkins/.ssh/vkey.pem'
         SLACK_CHANNEL = "slack-bot-token"
         //BACKUP_DIR='/home/ubuntu/pinga-backup-$(date +%d%b%Y)'
-        BACKUP_DIR=\$(ls -td /home/ubuntu/pinga-backup-* | head -n 1)
+       // BACKUP_DIR=\$(ls -td /home/ubuntu/pinga-backup-* | head -n 1)
         //BACKUP_DIR="/home/ubuntu"
         
     }

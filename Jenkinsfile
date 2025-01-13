@@ -264,20 +264,39 @@ pipeline {
 stage('Prepare Deployment') {
     steps {
         script {
-            sh """
-                ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} << 'EOF'
-                    #!/bin/bash
-                    echo '[INFO] Renaming old dist directory...'
-                    BACKUP_DIR="/home/ubuntu/pinga-backup-$(date +%d%b%Y%H%M%S)"
-                    echo "[DEBUG] Backup directory will be: \$BACKUP_DIR"
-                    if [ -d /var/www/html/pinga ]; then
-                        echo '[INFO] Moving /var/www/html/pinga to \$BACKUP_DIR...'
-                        sudo mv /var/www/html/pinga \$BACKUP_DIR
-                    else
-                        echo '[INFO] /var/www/html/pinga does not exist, skipping backup.'
-                    fi
-                EOF
-            """
+            try {
+                sh """
+                    ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} << 'EOF'
+                        set -e  # Exit immediately if a command exits with a non-zero status
+                        set -o pipefail  # Catch errors in piped commands
+                        
+                        echo '[INFO] Starting deployment preparation...'
+                        BACKUP_DIR="/home/ubuntu/pinga-backup-\$(date +%d%b%Y%H%M%S)"
+                        echo "[DEBUG] Calculated backup directory: \$BACKUP_DIR"
+
+                        if [ -d /var/www/html/pinga ]; then
+                            echo '[INFO] Found existing /var/www/html/pinga directory.'
+                            echo '[INFO] Moving it to backup directory...'
+                            sudo mv /var/www/html/pinga \$BACKUP_DIR
+                            if [ \$? -eq 0 ]; then
+                                echo "[INFO] Successfully moved /var/www/html/pinga to \$BACKUP_DIR."
+                            else
+                                echo "[ERROR] Failed to move /var/www/html/pinga to \$BACKUP_DIR." >&2
+                                exit 1
+                            fi
+                        else
+                            echo '[INFO] No /var/www/html/pinga directory found, skipping backup.'
+                        fi
+
+                        echo '[INFO] Deployment preparation completed successfully.'
+                    EOF
+                """
+            } catch (Exception e) {
+                // Capture and log errors
+                echo "[ERROR] An error occurred during the Prepare Deployment stage."
+                echo "[DEBUG] Error message: ${e.getMessage()}"
+                error "Prepare Deployment stage failed. See logs above for details."
+            }
         }
     }
 }

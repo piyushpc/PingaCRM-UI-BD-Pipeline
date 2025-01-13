@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         AWS_DEFAULT_REGION = 'ap-south-1'
-        BUILD_DATE = "${new Date().format('ddMMMyyyy')}"
+        BUILD_DATE = sh(script: 'date +%d%b%Y', returnStdout: true).trim()
         BUILD_DIR = "/home/ubuntu"
         DIST_FILE = "dist-${params.ENVIRONMENT}-${new Date().format('ddMMMyyyy')}-new.tar.gz"
         S3_BUCKET = 'pinga-builds'
@@ -199,94 +199,85 @@ pipeline {
         }
 
         stage('Download and Extract Build from S3') {
-    steps {
-        sshagent(credentials: [env.CREDENTIALS_ID]) {
-            sh """
-            echo '[INFO] Downloading the new build from S3...'
-            ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
-                aws s3 cp s3://${S3_BUCKET}/${env.DIST_FILE} /home/ubuntu/${env.DIST_FILE} &&
-                echo '[INFO] Build file downloaded successfully.' ||
-                (echo '[ERROR] Build file download failed.' && exit 1)
-                
-                echo '[INFO] Extracting the downloaded build file...'
-                tar -xvf /home/ubuntu/${env.DIST_FILE} -C /home/ubuntu/${params.ENVIRONMENT}-dist &&
-                echo '[INFO] Build file extracted successfully.' ||
-                (echo '[ERROR] Extraction failed.' && exit 1)
-            "
-            """
-        }
-    }
-}
-      ///  # Update permissions and ownership before anything else
-         //           # sudo chmod -R 775 /var/www/html/pinga
-           //        # sudo chown -R jenkins:jenkins /var/www/html/pinga  # if Jenkins is running under the 'jenkins' user
-        
-        stage('Backup Old Build') {
-    steps {
-        sshagent(credentials: [env.CREDENTIALS_ID]) {
-            sh """
-                ssh -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/vkey.pem ubuntu@ec2-3-109-179-70.ap-south-1.compute.amazonaws.com <<EOF
-                    echo '[INFO] Renaming old dist directory...';
-                    if [ -d /var/www/html/pinga ]; then
-                        BACKUP_DIR='/var/www/html/pinga-backup-13Jan2025'
-                        sudo mv /var/www/html/pinga \$BACKUP_DIR || { echo '[ERROR] Backup failed'; exit 1; }
-                    fi
-                EOF
-            """
-        }
-    }
-}
-
-
-stage('Prepare Deployment') {
-    steps {
-        script {
-            try {
-                sh """
-                    ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} << 'EOF'
-                        # Use Bash explicitly
-                        if [ -x /bin/bash ]; then
-                            exec /bin/bash
-                        fi
+            steps {
+                sshagent(credentials: [env.CREDENTIALS_ID]) {
+                    sh """
+                    echo '[INFO] Downloading the new build from S3...'
+                    ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
+                        aws s3 cp s3://${S3_BUCKET}/${env.DIST_FILE} /home/ubuntu/${env.DIST_FILE} &&
+                        echo '[INFO] Build file downloaded successfully.' ||
+                        (echo '[ERROR] Build file download failed.' && exit 1)
                         
-                        # Enable debugging and strict error handling
-                        set -e
-                        set -o pipefail
-
-                        echo '[INFO] Starting deployment preparation...'
-                        BACKUP_DIR="/home/ubuntu/pinga-backup-\$(date +%d%b%Y%H%M%S)"
-                        echo "[DEBUG] Calculated backup directory: \$BACKUP_DIR"
-
-                        if [ -d /var/www/html/pinga ]; then
-                            echo '[INFO] Found existing /var/www/html/pinga directory.'
-                            echo '[INFO] Moving it to backup directory...'
-                            sudo mv /var/www/html/pinga \$BACKUP_DIR
-                            if [ \$? -eq 0 ]; then
-                                echo "[INFO] Successfully moved /var/www/html/pinga to \$BACKUP_DIR."
-                            else
-                                echo "[ERROR] Failed to move /var/www/html/pinga to \$BACKUP_DIR." >&2
-                                exit 1
-                            fi
-                        else
-                            echo '[INFO] No /var/www/html/pinga directory found, skipping backup.'
-                        fi
-
-                        echo '[INFO] Deployment preparation completed successfully.'
-                    EOF
-                """
-            } catch (Exception e) {
-                echo "[ERROR] Deployment preparation failed."
-                echo "[DEBUG] Error: ${e.getMessage()}"
-                error "Stage failed: Prepare Deployment."
+                        echo '[INFO] Extracting the downloaded build file...'
+                        tar -xvf /home/ubuntu/${env.DIST_FILE} -C /home/ubuntu/${params.ENVIRONMENT}-dist &&
+                        echo '[INFO] Build file extracted successfully.' ||
+                        (echo '[ERROR] Extraction failed.' && exit 1)
+                    "
+                    """
+                }
             }
         }
-    }
-}
 
+        stage('Backup Old Build') {
+            steps {
+                sshagent(credentials: [env.CREDENTIALS_ID]) {
+                    sh """
+                        ssh -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/vkey.pem ubuntu@ec2-3-109-179-70.ap-south-1.compute.amazonaws.com <<EOF
+                            echo '[INFO] Renaming old dist directory...';
+                            if [ -d /var/www/html/pinga ]; then
+                                BACKUP_DIR='/var/www/html/pinga-backup-13Jan2025'
+                                sudo mv /var/www/html/pinga \$BACKUP_DIR || { echo '[ERROR] Backup failed'; exit 1; }
+                            fi
+                        EOF
+                    """
+                }
+            }
+        }
 
+        stage('Prepare Deployment') {
+            steps {
+                script {
+                    try {
+                        sh """
+                            ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} << 'EOF'
+                                # Use Bash explicitly
+                                if [ -x /bin/bash ]; then
+                                    exec /bin/bash
+                                fi
 
+                                # Enable debugging and strict error handling
+                                set -e
+                                set -o pipefail
 
+                                echo '[INFO] Starting deployment preparation...'
+                                BACKUP_DIR="/home/ubuntu/pinga-backup-\$(date +%d%b%Y%H%M%S)"
+                                echo "[DEBUG] Calculated backup directory: \$BACKUP_DIR"
 
+                                if [ -d /var/www/html/pinga ]; then
+                                    echo '[INFO] Found existing /var/www/html/pinga directory.'
+                                    echo '[INFO] Moving it to backup directory...'
+                                    sudo mv /var/www/html/pinga \$BACKUP_DIR
+                                    if [ \$? -eq 0 ]; then
+                                        echo "[INFO] Successfully moved /var/www/html/pinga to \$BACKUP_DIR."
+                                    else
+                                        echo "[ERROR] Failed to move /var/www/html/pinga to \$BACKUP_DIR." >&2
+                                        exit 1
+                                    fi
+                                else
+                                    echo '[INFO] No /var/www/html/pinga directory found, skipping backup.'
+                                fi
+
+                                echo '[INFO] Deployment preparation completed successfully.'
+                            EOF
+                        """
+                    } catch (Exception e) {
+                        echo "[ERROR] Deployment preparation failed."
+                        echo "[DEBUG] Error: ${e.getMessage()}"
+                        error "Stage failed: Prepare Deployment."
+                    }
+                }
+            }
+        }
 
         stage('Deploy New Build') {
             steps {
@@ -318,81 +309,58 @@ stage('Prepare Deployment') {
             }
         }
 
-     //   stage('Smoke Tests') {
-     //       steps {
-     //           script {
-      //              echo "[INFO] Running smoke tests..."
-       ////             sshagent(credentials: [env.CREDENTIALS_ID]) {
-           //             sh """
-        //                ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
-         //               echo \"[INFO] Running smoke tests for application...\"
-//
-  //                      # Check application health
-    //                    curl -sSf https://crmdev.pingacrm.com | grep -q \"<title>Pinga CRM</title>\" || { echo \"[ERROR] Smoke test failed: Content validation failed\"; exit 1; }
-//
-  //                      # Add more endpoints if needed
-    //                    echo \"[INFO] Smoke tests passed successfully.\"
-      //                   "
-        //                """
-          //          }
-       //         }
-        //    }
-     //   }
+        stage('Clean Up') {
+            steps {
+                echo "[INFO] Cleaning up temporary files."
+                sh "rm -rf /tmp/${params.ENVIRONMENT}-dist"
+            }
+        }
 
-            stage('Clean Up') {
-                steps {
-                    echo "[INFO] Cleaning up temporary files."
-                    sh "rm -rf /tmp/${params.ENVIRONMENT}-dist"
+        stage('Notify Slack') {
+            steps {
+                script {
+                    def message = "Deployment of ${params.ENVIRONMENT} build completed successfully!"
+                    slackSend(
+                        channel: 'jenkins', // Replace with your Slack channel
+                        color: 'good',
+                        message: message,
+                        tokenCredentialId: 'slack-bot-token' // Replace with the ID of your Slack credential
+                    )
                 }
             }
-
-            stage('Notify Slack') {
-    steps {
-        script {
-            def message = "Deployment of ${params.ENVIRONMENT} build completed successfully!"
-            slackSend(
-                channel: 'jenkins', // Replace with your Slack channel
-                color: 'good',
-                message: message,
-                tokenCredentialId: 'slack-bot-token' // Replace with the ID of your Slack credential
-            )
         }
     }
-}
-    
+
     post {
-        //failure {
-          //  slackSend(channel: env.SLACK_CHANNEL, color: 'danger', message: "Deployment failed for ${params.ENVIRONMENT}. Please investigate.")
+        failure {
+            script {
+                echo "[ERROR] Deployment failed. Initiating rollback and sending failure notification..."
+                // Rollback logic
+                sshagent(credentials: [CREDENTIALS_ID]) {
+                    sh """
+                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} << EOF
+                            # Stop apache service to rollback
+                            sudo service apache2 stop || { echo '[ERROR] Apache2 stop failed'; exit 1; }
 
-            failure {
-    script {
-        echo "[ERROR] Deployment failed. Initiating rollback and sending failure notification..."
-        // Rollback logic
-        sshagent(credentials: [CREDENTIALS_ID]) {
-            sh """
-                ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} << EOF
-                    # Stop apache service to rollback
-                    sudo service apache2 stop || { echo '[ERROR] Apache2 stop failed'; exit 1; }
-
-                    # Check if backup exists and rollback
-                    if [ -d /var/www/html/pinga-backup-${env.BUILD_DATE} ]; then
-                        echo '[INFO] Removing old dist directory...'
-                        sudo rm -rf /var/www/html/pinga || { echo '[ERROR] Removal failed'; exit 1; }
-                        echo '[INFO] Restoring backup...'
-                        sudo mv /var/www/html/pinga-backup-${env.BUILD_DATE} /var/www/html/pinga || { echo '[ERROR] Restore failed'; exit 1; }
-                        echo '[INFO] Updating permissions...'
-                        sudo chown -R www-data:www-data /var/www || { echo '[ERROR] Permissions update failed'; exit 1; }
-                    else
-                        echo '[ERROR] Backup not found for rollback.'
-                        exit 1
-                    fi
-                    
-                    # Restart apache service
-                    sudo service apache2 start || { echo '[ERROR] Apache2 start failed'; exit 1; }
-                EOF
-            """
+                            # Check if backup exists and rollback
+                            if [ -d /var/www/html/pinga-backup-${env.BUILD_DATE} ]; then
+                                echo '[INFO] Removing old dist directory...'
+                                sudo rm -rf /var/www/html/pinga || { echo '[ERROR] Removal failed'; exit 1; }
+                                echo '[INFO] Restoring backup...'
+                                sudo mv /var/www/html/pinga-backup-${env.BUILD_DATE} /var/www/html/pinga || { echo '[ERROR] Restore failed'; exit 1; }
+                                echo '[INFO] Updating permissions...'
+                                sudo chown -R www-data:www-data /var/www || { echo '[ERROR] Permissions update failed'; exit 1; }
+                            else
+                                echo '[ERROR] Backup not found for rollback.'
+                                exit 1
+                            fi
+                            
+                            # Restart apache service
+                            sudo service apache2 start || { echo '[ERROR] Apache2 start failed'; exit 1; }
+                        EOF
+                    """
+                }
+            }
         }
     }
 }
-    }
-    }

@@ -225,6 +225,7 @@ pipeline {
                 ssh -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/vkey.pem ubuntu@ec2-3-109-179-70.ap-south-1.compute.amazonaws.com '
                     echo "[INFO] Renaming old dist directory...";
                     if [ -d /var/www/html/pinga ]; then
+                        BACKUP_DIR="/var/www/html/pinga-backup-\$(date +%d%b%Y)"
                         sudo mv /var/www/html/pinga \$BACKUP_DIR || { echo "[ERROR] Backup failed"; exit 1; }
                     fi
                 '

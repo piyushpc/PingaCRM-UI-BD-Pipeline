@@ -359,7 +359,6 @@ stage('Prepare Deployment') {
         }
     }
 }
-    }
     
     post {
         //failure {
@@ -395,4 +394,4 @@ stage('Prepare Deployment') {
         }
     }
 }
-
+    }

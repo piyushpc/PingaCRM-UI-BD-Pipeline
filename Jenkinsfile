@@ -224,9 +224,10 @@ pipeline {
             sh """
                 ssh -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/vkey.pem ubuntu@ec2-3-109-179-70.ap-south-1.compute.amazonaws.com '
                     echo "[INFO] Renaming old dist directory...";
+                    BACKUP_DIR="/var/www/html/pinga-backup-$(date +%d%b%Y)"
                     if [ -d /var/www/html/pinga ]; then
-                        BACKUP_DIR="/var/www/html/pinga-backup-13Jan2025"
-                        sudo mv /var/www/html/pinga \$BACKUP_DIR || { echo "[ERROR] Backup failed"; exit 1; }
+                    echo "[INFO] Backing up old files to $BACKUP_DIR"
+                        sudo mv /var/www/html/pinga "$BACKUP_DIR" || { echo "[ERROR] Backup failed"; exit 1; }
                     fi
                 '
             """

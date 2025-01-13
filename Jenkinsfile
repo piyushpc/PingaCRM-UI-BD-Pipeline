@@ -9,7 +9,8 @@ pipeline {
         S3_BUCKET = 'pinga-builds'
         SSH_KEY_PATH = '/var/lib/jenkins/.ssh/vkey.pem'
         SLACK_CHANNEL = "slack-bot-token"
-        BACKUP_DIR='/home/ubuntu/pinga-backup-$(date +%d%b%Y)'
+        //BACKUP_DIR='/home/ubuntu/pinga-backup-$(date +%d%b%Y)'
+        BACKUP_DIR=\$(ls -td /home/ubuntu/pinga-backup-* | head -n 1)
         //BACKUP_DIR="/home/ubuntu"
         
     }
@@ -337,36 +338,45 @@ pipeline {
 
     post {
     failure {
-        script {
-            echo "[ERROR] Deployment failed. Initiating rollback and sending failure notification..."
-            // Rollback logic
-            sshagent(credentials: [CREDENTIALS_ID]) {
-                sh """
-                    ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} << 'EOF'
-                        # Stop apache service to rollback
-                        sudo service apache2 stop || { echo '[ERROR] Apache2 stop failed'; exit 1; }
+    script {
+        echo "[ERROR] Deployment failed. Initiating rollback and sending failure notification..."
+        // Rollback logic
+        sshagent(credentials: [CREDENTIALS_ID]) {
+            sh """
+                ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} << 'EOF'
+                    # Stop apache service to rollback
+                    echo "[INFO] Stopping Apache service..."
+                    sudo service apache2 stop || { echo '[ERROR] Apache2 stop failed'; exit 1; }
 
-                        # Check if backup exists and rollback
-                        if [ -d /var/www/html/pinga-backup-${env.BUILD_DATE} ]; then
-                            echo '[INFO] Removing old dist directory...'
-                            sudo rm -rf /var/www/html/pinga || { echo '[ERROR] Removal failed'; exit 1; }
+                    # Locate the most recent backup
+                    BACKUP_DIR=\$(ls -td /home/ubuntu/pinga-backup-* | head -n 1)
+                    if [ -d "\$BACKUP_DIR" ]; then
+                        echo "[INFO] Most recent backup found: \$BACKUP_DIR"
 
-                            echo '[INFO] Restoring backup...'
-                            sudo mv /var/www/html/pinga-backup-${env.BUILD_DATE} /var/www/html/pinga || { echo '[ERROR] Restore failed'; exit 1; }
+                        # Remove the current dist directory
+                        echo "[INFO] Removing old dist directory..."
+                        sudo rm -rf /var/www/html/pinga || { echo '[ERROR] Removal failed'; exit 1; }
 
-                            echo '[INFO] Updating permissions...'
-                            sudo chown -R www-data:www-data /var/www || { echo '[ERROR] Permissions update failed'; exit 1; }
-                        else
-                            echo '[ERROR] Backup not found for rollback.'
-                            exit 1
-                        fi
-                        
-                        # Restart apache service
-                        sudo service apache2 start || { echo '[ERROR] Apache2 start failed'; exit 1; }
-                    EOF
-                """
-            }
+                        # Restore the most recent backup
+                        echo "[INFO] Restoring backup from \$BACKUP_DIR..."
+                        sudo mv "\$BACKUP_DIR" /var/www/html/pinga || { echo '[ERROR] Restore failed'; exit 1; }
+
+                        # Update permissions
+                        echo "[INFO] Updating permissions..."
+                        sudo chown -R www-data:www-data /var/www || { echo '[ERROR] Permissions update failed'; exit 1; }
+                    else
+                        echo "[ERROR] No backup directory found for rollback."
+                        exit 1
+                    fi
+                    
+                    # Restart apache service
+                    echo "[INFO] Restarting Apache service..."
+                    sudo service apache2 start || { echo '[ERROR] Apache2 start failed'; exit 1; }
+                EOF
+            """
         }
     }
+}
+
 }
 }

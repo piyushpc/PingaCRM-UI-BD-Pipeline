@@ -349,7 +349,7 @@ pipeline {
                     sudo service apache2 stop || { echo '[ERROR] Apache2 stop failed'; exit 1; }
 
                     # Locate the most recent backup
-                    BACKUP_DIR=\$(ls -td /home/ubuntu/pinga-backup-*/ | head -n 1)
+                    BACKUP_DIR=\$(ls -td /home/ubuntu/pinga-backup-* | head -n 1)
                     if [ -d "\$BACKUP_DIR" ]; then
                         echo "[INFO] Most recent backup found: \$BACKUP_DIR"
 
@@ -359,7 +359,7 @@ pipeline {
 
                         # Restore the most recent backup
                         echo "[INFO] Restoring backup from \$BACKUP_DIR..."
-                        sudo mv "\$BACKUP_DIR" /var/www/html/pinga || { echo '[ERROR] Restore failed'; exit 1; }
+                        sudo mv "\$BACKUP_DIR" /var/www/html/ || { echo '[ERROR] Restore failed'; exit 1; }
 
                         # Update permissions
                         echo "[INFO] Updating permissions..."
@@ -368,6 +368,7 @@ pipeline {
                         # Restart apache service
                         echo "[INFO] Restarting Apache service..."
                         sudo service apache2 start || { echo '[ERROR] Apache2 start failed'; exit 1; }
+                        
                         else
                         echo "[ERROR] No backup directory found for rollback."
                         exit 1

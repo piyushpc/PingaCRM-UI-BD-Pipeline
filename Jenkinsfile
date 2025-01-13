@@ -332,35 +332,37 @@ pipeline {
     }
 
     post {
-        failure {
-            script {
-                echo "[ERROR] Deployment failed. Initiating rollback and sending failure notification..."
-                // Rollback logic
-                sshagent(credentials: [CREDENTIALS_ID]) {
-                    sh """
-                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} << EOF
-                            # Stop apache service to rollback
-                            sudo service apache2 stop || { echo '[ERROR] Apache2 stop failed'; exit 1; }
+    failure {
+        script {
+            echo "[ERROR] Deployment failed. Initiating rollback and sending failure notification..."
+            // Rollback logic
+            sshagent(credentials: [CREDENTIALS_ID]) {
+                sh """
+                    ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} << 'EOF'
+                        # Stop apache service to rollback
+                        sudo service apache2 stop || { echo '[ERROR] Apache2 stop failed'; exit 1; }
 
-                            # Check if backup exists and rollback
-                            if [ -d /var/www/html/pinga-backup-${env.BUILD_DATE} ]; then
-                                echo '[INFO] Removing old dist directory...'
-                                sudo rm -rf /var/www/html/pinga || { echo '[ERROR] Removal failed'; exit 1; }
-                                echo '[INFO] Restoring backup...'
-                                sudo mv /var/www/html/pinga-backup-${env.BUILD_DATE} /var/www/html/pinga || { echo '[ERROR] Restore failed'; exit 1; }
-                                echo '[INFO] Updating permissions...'
-                                sudo chown -R www-data:www-data /var/www || { echo '[ERROR] Permissions update failed'; exit 1; }
-                            else
-                                echo '[ERROR] Backup not found for rollback.'
-                                exit 1
-                            fi
-                            
-                            # Restart apache service
-                            sudo service apache2 start || { echo '[ERROR] Apache2 start failed'; exit 1; }
-                        EOF
-                    """
-                }
+                        # Check if backup exists and rollback
+                        if [ -d /var/www/html/pinga-backup-${env.BUILD_DATE} ]; then
+                            echo '[INFO] Removing old dist directory...'
+                            sudo rm -rf /var/www/html/pinga || { echo '[ERROR] Removal failed'; exit 1; }
+
+                            echo '[INFO] Restoring backup...'
+                            sudo mv /var/www/html/pinga-backup-${env.BUILD_DATE} /var/www/html/pinga || { echo '[ERROR] Restore failed'; exit 1; }
+
+                            echo '[INFO] Updating permissions...'
+                            sudo chown -R www-data:www-data /var/www || { echo '[ERROR] Permissions update failed'; exit 1; }
+                        else
+                            echo '[ERROR] Backup not found for rollback.'
+                            exit 1
+                        fi
+                        
+                        # Restart apache service
+                        sudo service apache2 start || { echo '[ERROR] Apache2 start failed'; exit 1; }
+                    EOF
+                """
             }
         }
     }
+}
 }

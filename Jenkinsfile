@@ -9,6 +9,7 @@ pipeline {
         S3_BUCKET = 'pinga-builds'
         SSH_KEY_PATH = '/var/lib/jenkins/.ssh/vkey.pem'
         SLACK_CHANNEL = "slack-bot-token"
+        BACKUP_DIR='/var/www/html/pinga-backup-\$(date +%d%b%Y)'
     }
 
     parameters {

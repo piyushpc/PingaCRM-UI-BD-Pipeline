@@ -106,6 +106,7 @@ pipeline {
                             if (dirExists == "exists") {
                                 echo "[INFO] SVN directory exists. Performing svn update..."
                                 sh """
+                                sudo rm -rf ${svnDir}
                                 svn update --username ${SVN_USER} --password ${SVN_PASS} ${svnDir}
                                 """
                             } else {
@@ -227,14 +228,20 @@ pipeline {
                 ssh -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/vkey.pem ubuntu@ec2-3-109-179-70.ap-south-1.compute.amazonaws.com '
                     echo "[INFO] Renaming old dist directory...";
                     if [ -d /var/www/html/pinga ]; then
-                        BACKUP_DIR="/home/ubuntu/pinga-backup-\$(date +%d%b%Y)"
+                        BACKUP_DIR="/home/ubuntu/pinga-backup-\$(date +%d%b%Y_%H%M%S)"
+                        echo "[INFO] Creating unique backup directory: \$BACKUP_DIR";
+                        mkdir -p \$BACKUP_DIR || { echo "[ERROR] Failed to create backup directory"; exit 1; }
                         sudo mv /var/www/html/pinga \$BACKUP_DIR || { echo "[ERROR] Backup failed"; exit 1; }
+                        echo "[INFO] Backup completed successfully at \$BACKUP_DIR.";
+                    else
+                        echo "[INFO] No directory to backup.";
                     fi
                 '
             """
         }
     }
 }
+
 
         stage('Prepare Deployment') {
     steps {

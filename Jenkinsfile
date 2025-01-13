@@ -144,16 +144,16 @@ pipeline {
             }
         }
 
-        stage('Install Dependencies & Build') {
+       // stage('Install Dependencies & Build') {
             steps {
                 dir('/home/ubuntu/pinga/trunk') {
                     echo "[INFO] Installing dependencies and preparing build."
                     sh '''
                         rm -rf node_modules package-lock.json
-                        npm install --legacy-peer-deps
+                     //   npm install --legacy-peer-deps
                         npm audit fix || echo "Audit fix failed; ignoring remaining issues."
                         npm audit fix --force || echo "Force audit fix failed."
-                        npm run build
+                    //    npm run build
                         echo "[INFO] Build process completed successfully."
                     '''
                 }

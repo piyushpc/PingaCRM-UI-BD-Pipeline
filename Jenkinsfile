@@ -267,9 +267,15 @@ stage('Prepare Deployment') {
             try {
                 sh """
                     ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} << 'EOF'
-                        set -e  # Exit immediately if a command exits with a non-zero status
-                        set -o pipefail  # Catch errors in piped commands
+                        # Use Bash explicitly
+                        if [ -x /bin/bash ]; then
+                            exec /bin/bash
+                        fi
                         
+                        # Enable debugging and strict error handling
+                        set -e
+                        set -o pipefail
+
                         echo '[INFO] Starting deployment preparation...'
                         BACKUP_DIR="/home/ubuntu/pinga-backup-\$(date +%d%b%Y%H%M%S)"
                         echo "[DEBUG] Calculated backup directory: \$BACKUP_DIR"
@@ -292,14 +298,14 @@ stage('Prepare Deployment') {
                     EOF
                 """
             } catch (Exception e) {
-                // Capture and log errors
-                echo "[ERROR] An error occurred during the Prepare Deployment stage."
-                echo "[DEBUG] Error message: ${e.getMessage()}"
-                error "Prepare Deployment stage failed. See logs above for details."
+                echo "[ERROR] Deployment preparation failed."
+                echo "[DEBUG] Error: ${e.getMessage()}"
+                error "Stage failed: Prepare Deployment."
             }
         }
     }
 }
+
 
 
 

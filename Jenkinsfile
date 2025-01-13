@@ -358,8 +358,27 @@ stage('Prepare Deployment') {
     }
     
     post {
-        failure {
-            slackSend(channel: env.SLACK_CHANNEL, color: 'danger', message: "Deployment failed for ${params.ENVIRONMENT}. Please investigate.")
+        //failure {
+          //  slackSend(channel: env.SLACK_CHANNEL, color: 'danger', message: "Deployment failed for ${params.ENVIRONMENT}. Please investigate.")
+
+            failure {
+            script {
+                echo "[ERROR] Deployment failed. Initiating rollback and sending failure notification..."
+                // Rollback logic
+                sshagent(credentials: [CREDENTIALS_ID]) {
+                    sh '''
+                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} << EOF
+                        sudo service apache2 stop || exit 1
+                        if [ -d /var/www/html/pinga-backup-${env.BUILD_DATE} ]; then
+                            sudo rm -rf /var/www/html/pinga || exit 1
+                            sudo mv /var/www/html/pinga-backup-${env.BUILD_DATE} /var/www/html/pinga
+                            echo '[INFO] Updating permissions...';
+                            sudo chown -R www-data:www-data /var/www || exit 1
+                        fi
+                        sudo service apache2 start || exit 1
+                        EOF
+                    '''
+                }
         }
     }
 }

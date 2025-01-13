@@ -228,7 +228,7 @@ pipeline {
                     echo "[INFO] Renaming old dist directory...";
                     if [ -d /var/www/html/pinga ]; then
                         BACKUP_DIR="/home/ubuntu/pinga-backup-$(date +%d%b%Y)"
-                        sudo mv /var/www/html/pinga /home/ubuntu/pinga-backup-$(date +%d%b%Y) || { echo "[ERROR] Backup failed"; exit 1; }
+                        sudo mv /var/www/html/pinga ${BACKUP_DIR} || { echo "[ERROR] Backup failed"; exit 1; }
                     fi
                 '
             """

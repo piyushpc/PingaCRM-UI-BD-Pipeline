@@ -364,10 +364,6 @@ pipeline {
                         # Update permissions
                         echo "[INFO] Updating permissions..."
                         sudo chown -R www-data:www-data /var/www || { echo '[ERROR] Permissions update failed'; exit 1; }
-
-                        # Restart apache service
-                        echo "[INFO] Restarting Apache service..."
-                        sudo service apache2 start || { echo '[ERROR] Apache2 start failed'; exit 1; }
                         
                         else
                         echo "[ERROR] No backup directory found for rollback."

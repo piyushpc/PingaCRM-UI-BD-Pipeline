@@ -153,7 +153,7 @@ pipeline {
                         npm install --legacy-peer-deps
                         npm audit fix || echo "Audit fix failed; ignoring remaining issues."
                         npm audit fix --force || echo "Force audit fix failed."
-                    //    npm run build
+                        npm run build
                         echo "[INFO] Build process completed successfully."
                     '''
                 }
@@ -359,7 +359,7 @@ pipeline {
 
                         # Restore the most recent backup
                         echo "[INFO] Restoring backup from \$BACKUP_DIR..."
-                        sudo mv "\$BACKUP_DIR" /var/www/html/ || { echo '[ERROR] Restore failed'; exit 1; }
+                        sudo cp "\$BACKUP_DIR" /var/www/html/ || { echo '[ERROR] Restore failed'; exit 1; }
 
                         # Update permissions
                         echo "[INFO] Updating permissions..."

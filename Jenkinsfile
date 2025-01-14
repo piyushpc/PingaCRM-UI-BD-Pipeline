@@ -355,7 +355,7 @@ pipeline {
 
                         # Remove the current dist directory
                         echo "[INFO] Removing old dist directory..."
-                        sudo rm -rf /var/www/html/pinga || { echo '[ERROR] Removal failed'; exit 1; }
+                        sudo rm -rf /var/www/html/ || { echo '[ERROR] Removal failed'; exit 1; }
 
                         # Restore the most recent backup
                         echo "[INFO] Restoring backup from \$BACKUP_DIR..."

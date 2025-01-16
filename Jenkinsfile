@@ -354,7 +354,7 @@ pipeline {
                     sudo service apache2 stop || { echo '[ERROR] Apache2 stop failed'; exit 1; }
 
                     # Locate the most recent backup
-                    BACKUP_DIR=\$(ls -td /home/ubuntu/dist-uat-* | head -n 1)
+                    BACKUP_DIR=\$(ls -td /home/ubuntu/backup-dist-* | head -n 1)
                     if [ -d "\$BACKUP_DIR" ]; then
                         echo "[INFO] Most recent backup found: \$BACKUP_DIR"
 

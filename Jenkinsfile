@@ -364,7 +364,7 @@ pipeline {
 
                         # Restore the most recent backup
                         echo "[INFO] Restoring backup from \$BACKUP_DIR..."
-                        sudo cp "\$BACKUP_DIR" /var/www/html/ || { echo '[ERROR] Restore failed'; exit 1; }
+                        sudo cp -r "\$BACKUP_DIR" /var/www/html/ || { echo '[ERROR] Restore failed'; exit 1; }
 
                         # Update permissions
                         echo "[INFO] Updating permissions..."

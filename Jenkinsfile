@@ -130,13 +130,13 @@ pipeline {
             }
         }
 
-        stage('Clean Old Build Files') {
-            steps {
-                echo "[INFO] Cleaning up old build files from previous deployments."
-                sh "sudo rm -rf /home/ubuntu/pinga/trunk/dist/*"
-                echo "[INFO] Old build files removed."
-            }
-        }
+      //  stage('Clean Old Build Files') {
+       //     steps {
+       //         echo "[INFO] Cleaning up old build files from previous deployments."
+       //         sh "sudo rm -rf /home/ubuntu/pinga/trunk/dist/*"
+       //         echo "[INFO] Old build files removed."
+       //     }
+//        }
 
         stage('Copy Environment-Specific Configuration File') {
             steps {

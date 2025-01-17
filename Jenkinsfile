@@ -101,7 +101,7 @@ pipeline {
                         
                         // Define SVN URL and local directory
                         def svnUrl = "https://extsvn.pingacrm.com/svn/pingacrm-frontend-new/trunk"
-                        def svnDir = "/home/ubuntu/pinga/trunk/"
+                        def svnDir = "/home/ubuntu/pinga/trunk"
 
                         withCredentials([usernamePassword(credentialsId: 'svn-credentials-id', 
                                                           usernameVariable: 'SVN_USER', 
@@ -119,7 +119,9 @@ pipeline {
                                 echo "[INFO] SVN directory does not exist. Performing fresh svn checkout..."
                                 sh """
                                 mkdir -p /home/ubuntu/pinga/trunk/ || { echo "[ERROR] Failed to create backup directory"; exit 1; }
+                                cd /home/ubuntu/pinga/trunk
                                 svn checkout --username ${SVN_USER} --password ${SVN_PASS} ${svnUrl} ${svnDir}
+                                cd ../../
                                 """
                             }
                         }

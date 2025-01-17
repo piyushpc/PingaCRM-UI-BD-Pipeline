@@ -94,42 +94,41 @@ pipeline {
         }
 
         stage('Handle SVN Checkout/Update') {
-            steps {
-                script {
-                    if (params.UPDATE_SVN) {
-                        echo "[INFO] UPDATE_SVN is enabled. Checking SVN directory..."
-                        
-                        // Define SVN URL and local directory
-                        def svnUrl = "https://extsvn.pingacrm.com/svn/pingacrm-frontend-new/trunk"
-                        def svnDir = "/home/ubuntu/pinga/trunk/ "
+    steps {
+        script {
+            if (params.UPDATE_SVN) {
+                echo "[INFO] UPDATE_SVN is enabled. Checking SVN directory..."
 
-                        withCredentials([usernamePassword(credentialsId: 'svn-credentials-id', 
-                                                          usernameVariable: 'SVN_USER', 
-                                                          passwordVariable: 'SVN_PASS')]) {
-                            // Check if the SVN directory exists
-                            def dirExists = sh(script: "if [ -d ${svnDir} ]; then echo exists; else echo not_exists; fi", returnStdout: true).trim()
-                            
-                            if (dirExists == "exists") {
-                                echo "[INFO] SVN directory exists. Performing svn update..."
-                                sh """
-                               // sudo rm -rf 
-                                mkdir -p ${svnDir} || { echo "[ERROR] Failed to create backup directory"; exit 1; }
-                                svn update --username ${SVN_USER} --password ${SVN_PASS} ${svnDir}
-                                """
-                            } else {
-                                echo "[INFO] SVN directory does not exist. Performing fresh svn checkout..."
-                                sh """
-                                svn checkout --username ${SVN_USER} --password ${SVN_PASS} ${svnUrl} ${svnDir}
-                                """
-                            }
-                        }
-                        echo "[INFO] SVN operation completed successfully."
+                // Define SVN URL and local directory
+                def svnUrl = "https://extsvn.pingacrm.com/svn/pingacrm-frontend-new/trunk"
+                def svnDir = "/home/ubuntu/pinga/trunk"
+
+                withCredentials([usernamePassword(credentialsId: 'svn-credentials-id', 
+                                                  usernameVariable: 'SVN_USER', 
+                                                  passwordVariable: 'SVN_PASS')]) {
+                    // Check if the SVN directory exists
+                    def dirExists = sh(script: "if [ -d ${svnDir} ]; then echo exists; else echo not_exists; fi", returnStdout: true).trim()
+
+                    if (dirExists == "exists") {
+                        echo "[INFO] SVN directory exists. Performing svn update..."
+                        sh '''
+                            mkdir -p ${svnDir} || { echo "[ERROR] Failed to create SVN directory"; exit 1; }
+                            svn update --username $SVN_USER --password $SVN_PASS ${svnDir}
+                        '''
                     } else {
-                        echo "[INFO] UPDATE_SVN is disabled. Skipping SVN operations."
+                        echo "[INFO] SVN directory does not exist. Performing fresh svn checkout..."
+                        sh '''
+                            svn checkout --username $SVN_USER --password $SVN_PASS ${svnUrl} ${svnDir}
+                        '''
                     }
                 }
+                echo "[INFO] SVN operation completed successfully."
+            } else {
+                echo "[INFO] UPDATE_SVN is disabled. Skipping SVN operations."
             }
         }
+    }
+}
 
       //  stage('Clean Old Build Files') {
        //     steps {

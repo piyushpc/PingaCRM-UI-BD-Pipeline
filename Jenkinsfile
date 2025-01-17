@@ -106,19 +106,20 @@ pipeline {
                 withCredentials([usernamePassword(credentialsId: 'svn-credentials-id', 
                                                   usernameVariable: 'SVN_USER', 
                                                   passwordVariable: 'SVN_PASS')]) {
-                    // Check if the SVN directory exists
-                    def dirExists = sh(script: "if [ -d ${svnDir} ]; then echo exists; else echo not_exists; fi", returnStdout: true).trim()
-
-                    if (dirExists == "exists") {
-                        echo "[INFO] SVN directory exists. Performing svn update..."
-                        sh '''
+                    // Check if the SVN directory is a valid working copy
+                    def isWorkingCopy = sh(script: "if [ -d ${svnDir}/.svn ]; then echo yes; else echo no; fi", returnStdout: true).trim()
+                    
+                    if (isWorkingCopy == "yes") {
+                        echo "[INFO] SVN directory is a valid working copy. Performing svn update..."
+                        sh """
                             svn update --username $SVN_USER --password $SVN_PASS ${svnDir}
-                        '''
+                        """
                     } else {
-                        echo "[INFO] SVN directory does not exist. Performing fresh svn checkout..."
-                        sh '''
+                        echo "[INFO] Directory is not a valid working copy. Performing fresh svn checkout..."
+                        sh """
+                            sudo rm -rf ${svnDir}
                             svn checkout --username $SVN_USER --password $SVN_PASS ${svnUrl} ${svnDir}
-                        '''
+                        """
                     }
                 }
                 echo "[INFO] SVN operation completed successfully."
@@ -128,6 +129,7 @@ pipeline {
         }
     }
 }
+
 
       //  stage('Clean Old Build Files') {
        //     steps {

@@ -97,8 +97,8 @@ pipeline {
     steps {
         script {
             if (params.UPDATE_SVN) {
-                echo "[INFO] UPDATE_SVN is enabled. Checking SVN directory..."
-
+                echo "[INFO] UPDATE_SVN is enabled. Performing fresh SVN checkout..."
+                
                 // Define SVN URL and local directory
                 def svnUrl = "https://extsvn.pingacrm.com/svn/pingacrm-frontend-new/trunk"
                 def svnDir = "/home/ubuntu/pinga/trunk"
@@ -106,29 +106,23 @@ pipeline {
                 withCredentials([usernamePassword(credentialsId: 'svn-credentials-id', 
                                                   usernameVariable: 'SVN_USER', 
                                                   passwordVariable: 'SVN_PASS')]) {
-                    // Check if the SVN directory is a valid working copy
-                    def isWorkingCopy = sh(script: "if [ -d ${svnDir}/.svn ]; then echo yes; else echo no; fi", returnStdout: true).trim()
-                    
-                    if (isWorkingCopy == "yes") {
-                        echo "[INFO] SVN directory is a valid working copy. Performing svn update..."
-                        sh """
-                            svn update --username $SVN_USER --password $SVN_PASS ${svnDir}
-                        """
-                    } else {
-                        echo "[INFO] Directory is not a valid working copy. Performing fresh svn checkout..."
-                        sh """
-                            sudo rm -rf ${svnDir}
-                            svn checkout --username $SVN_USER --password $SVN_PASS ${svnUrl} ${svnDir}
-                        """
-                    }
+                    // Always perform a fresh checkout when UPDATE_SVN is true
+                    sh """
+                        echo '[INFO] Removing existing SVN directory...'
+                        sudo rm -rf ${svnDir}
+                        
+                        echo '[INFO] Checking out repository from SVN...'
+                        svn checkout --username $SVN_USER --password $SVN_PASS ${svnUrl} ${svnDir}
+                    """
                 }
-                echo "[INFO] SVN operation completed successfully."
+                echo "[INFO] Fresh SVN checkout completed successfully."
             } else {
                 echo "[INFO] UPDATE_SVN is disabled. Skipping SVN operations."
             }
         }
     }
 }
+
 
 
       //  stage('Clean Old Build Files') {

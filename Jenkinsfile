@@ -382,6 +382,10 @@ pipeline {
                     # Restart apache service
                     echo "[INFO] Restarting Apache service..."
                     sudo service apache2 start || { echo '[ERROR] Apache2 start failed'; exit 1; }
+
+                    # Restart apache service
+                    echo "[INFO] Restarting Apache service..."
+                    sudo systemctl restart apache2 || { echo '[ERROR] Apache2 start failed'; exit 1; }
                 EOF
             """
         }

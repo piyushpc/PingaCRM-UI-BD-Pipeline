@@ -118,6 +118,7 @@ pipeline {
                             } else {
                                 echo "[INFO] SVN directory does not exist. Performing fresh svn checkout..."
                                 sh """
+                                mkdir -p /home/ubuntu/pinga/trunk/ || { echo "[ERROR] Failed to create backup directory"; exit 1; }
                                 svn checkout --username ${SVN_USER} --password ${SVN_PASS} ${svnUrl} ${svnDir}
                                 """
                             }

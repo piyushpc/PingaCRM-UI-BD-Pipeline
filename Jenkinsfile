@@ -294,7 +294,7 @@ pipeline {
                     sh """
                         ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
                             echo '[INFO] Removing old deployment...';
-                            sudo rm -rf /var/www/html/pinga
+                            sudo rm -rf /var/www/html/pinga/
                             echo '[INFO] Deploying new build...';
                             sudo mv /home/ubuntu/${params.ENVIRONMENT}-dist/dist/* /var/www/html/pinga
                             echo '[INFO] Updating permissions...';

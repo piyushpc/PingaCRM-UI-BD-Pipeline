@@ -101,7 +101,7 @@ pipeline {
                         
                         // Define SVN URL and local directory
                         def svnUrl = "https://extsvn.pingacrm.com/svn/pingacrm-frontend-new/trunk"
-                        def svnDir = "/home/ubuntu/pinga/trunk/*"
+                        def svnDir = "/home/ubuntu/pinga/trunk/"
 
                         withCredentials([usernamePassword(credentialsId: 'svn-credentials-id', 
                                                           usernameVariable: 'SVN_USER', 

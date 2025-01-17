@@ -112,7 +112,6 @@ pipeline {
                     if (dirExists == "exists") {
                         echo "[INFO] SVN directory exists. Performing svn update..."
                         sh '''
-                            mkdir -p ${svnDir} || { echo "[ERROR] Failed to create SVN directory"; exit 1; }
                             svn update --username $SVN_USER --password $SVN_PASS ${svnDir}
                         '''
                     } else {

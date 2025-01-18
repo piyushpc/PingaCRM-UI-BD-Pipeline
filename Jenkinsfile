@@ -9,6 +9,10 @@ pipeline {
         S3_BUCKET = 'pinga-builds'
         SSH_KEY_PATH = '/var/lib/jenkins/.ssh/vkey.pem'
         SLACK_CHANNEL = "slack-bot-token"
+        //BACKUP_DIR='/home/ubuntu/pinga-backup-$(date +%d%b%Y)'
+       // BACKUP_DIR=\$(ls -td /home/ubuntu/pinga-backup-* | head -n 1)
+        //BACKUP_DIR="/home/ubuntu"
+        
     }
 
     parameters {
@@ -55,10 +59,10 @@ pipeline {
                             env.FRONTEND_SERVER = "ec2-65-1-130-96.ap-south-1.compute.amazonaws.com"
                             env.CREDENTIALS_ID = "uat-frontend-ssh-key"
                             break
-                        case 'prod':
-                            env.DIST_FILE = "dist-prod-${env.BUILD_DATE}-new.tar.gz"
-                            env.FRONTEND_SERVER = "prod.pingacrm.com"
-                            env.CREDENTIALS_ID = "prod-frontend-ssh-key"
+                        case 'uat':
+                            env.DIST_FILE = "dist-uat-${env.BUILD_DATE}-new.tar.gz"
+                            env.FRONTEND_SERVER = "dev.pingacrm.com"
+                            env.CREDENTIALS_ID = "dev-frontend-ssh-key"
                             break
                         default:
                             error "[ERROR] Invalid environment: ${params.ENVIRONMENT}. Use 'dev', 'uat', or 'prod'."
@@ -90,40 +94,44 @@ pipeline {
         }
 
         stage('Handle SVN Checkout/Update') {
-            steps {
-                script {
-                    if (params.UPDATE_SVN) {
-                        echo "[INFO] UPDATE_SVN is enabled. Performing fresh SVN checkout..."
+    steps {
+        script {
+            if (params.UPDATE_SVN) {
+                echo "[INFO] UPDATE_SVN is enabled. Performing fresh SVN checkout..."
+                
+                // Define SVN URL and local directory
+                def svnUrl = "https://extsvn.pingacrm.com/svn/pingacrm-frontend-new/trunk"
+                def svnDir = "/home/ubuntu/pinga/trunk"
+
+                withCredentials([usernamePassword(credentialsId: 'svn-credentials-id', 
+                                                  usernameVariable: 'SVN_USER', 
+                                                  passwordVariable: 'SVN_PASS')]) {
+                    // Always perform a fresh checkout when UPDATE_SVN is true
+                    sh """
+                        echo '[INFO] Removing existing SVN directory...'
+                        sudo rm -rf ${svnDir}
                         
-                        def svnUrl = "https://extsvn.pingacrm.com/svn/pingacrm-frontend-new/trunk"
-                        def svnDir = "/home/ubuntu/pinga/trunk"
-
-                        withCredentials([usernamePassword(credentialsId: 'svn-credentials-id', 
-                                                          usernameVariable: 'SVN_USER', 
-                                                          passwordVariable: 'SVN_PASS')]) {
-                            sh """
-                                echo '[INFO] Removing existing SVN directory...'
-                                sudo rm -rf ${svnDir}
-                                
-                                echo '[INFO] Checking out repository from SVN...'
-                                svn checkout --username $SVN_USER --password $SVN_PASS ${svnUrl} ${svnDir}
-                            """
-                        }
-                        echo "[INFO] Fresh SVN checkout completed successfully."
-                    } else {
-                        echo "[INFO] UPDATE_SVN is disabled. Skipping SVN operations."
-                    }
+                        echo '[INFO] Checking out repository from SVN...'
+                        svn checkout --username $SVN_USER --password $SVN_PASS ${svnUrl} ${svnDir}
+                    """
                 }
+                echo "[INFO] Fresh SVN checkout completed successfully."
+            } else {
+                echo "[INFO] UPDATE_SVN is disabled. Skipping SVN operations."
             }
         }
+    }
+}
 
-        stage('Clean Old Build Files') {
-            steps {
-                echo "[INFO] Cleaning up old build files from previous deployments."
-                sh "sudo rm -rf /home/ubuntu/pinga/trunk/dist/*"
-                echo "[INFO] Old build files removed."
-            }
-        }
+
+
+      //  stage('Clean Old Build Files') {
+       //     steps {
+       //         echo "[INFO] Cleaning up old build files from previous deployments."
+       //         sh "sudo rm -rf /home/ubuntu/pinga/trunk/dist/*"
+       //         echo "[INFO] Old build files removed."
+       //     }
+//        }
 
         stage('Copy Environment-Specific Configuration File') {
             steps {
@@ -162,7 +170,7 @@ pipeline {
                         sh "sudo tar -czvf ${TAR_PATH} dist"
                         
                         retry(3) {
-                            sh """aws s3 cp ${TAR_PATH} s3://${S3_BUCKET}/${env.DIST_FILE}"""
+                            sh """aws s3 cp ${TAR_PATH} s3://pinga-builds/${env.DIST_FILE}"""
                         }
                         echo "[INFO] Build artifact uploaded to S3."
                     }
@@ -195,84 +203,90 @@ pipeline {
         }
 
         stage('Download and Extract Build from S3') {
-            steps {
-                sshagent(credentials: [env.CREDENTIALS_ID]) {
-                    sh """
-                    echo '[INFO] Downloading the new build from S3...'
-                    ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
-                        aws s3 cp s3://${S3_BUCKET}/${env.DIST_FILE} /home/ubuntu/${env.DIST_FILE} &&
-                        echo '[INFO] Build file downloaded successfully.' ||
-                        (echo '[ERROR] Build file download failed.' && exit 1)
+    steps {
+        sshagent(credentials: [env.CREDENTIALS_ID]) {
+            sh """
+            echo '[INFO] Downloading the new build from S3...'
+            ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
+                aws s3 cp s3://${S3_BUCKET}/${env.DIST_FILE} /home/ubuntu/${env.DIST_FILE} &&
+                echo '[INFO] Build file downloaded successfully.' ||
+                (echo '[ERROR] Build file download failed.' && exit 1)
 
-                        echo '[INFO] Ensuring target directory exists...'
-                        mkdir -p /home/ubuntu/${params.ENVIRONMENT}-dist ||
-                        (echo '[ERROR] Failed to create target directory.' && exit 1)
+                echo '[INFO] Ensuring target directory exists...'
+                mkdir -p /home/ubuntu/${params.ENVIRONMENT}-dist ||
+                (echo '[ERROR] Failed to create target directory.' && exit 1)
 
-                        echo '[INFO] Extracting the downloaded build file...'
-                        sudo tar -xvf /home/ubuntu/${env.DIST_FILE} -C /home/ubuntu/${params.ENVIRONMENT}-dist &&
-                        echo '[INFO] Build file extracted successfully.' ||
-                        (echo '[ERROR] Extraction failed.' && exit 1)
-                    "
-                    """
-                }
-            }
+                echo '[INFO] Extracting the downloaded build file...'
+                sudo tar -xvf /home/ubuntu/${env.DIST_FILE} -C /home/ubuntu/${params.ENVIRONMENT}-dist &&
+                echo '[INFO] Build file extracted successfully.' ||
+                (echo '[ERROR] Extraction failed.' && exit 1)
+            "
+            """
         }
+    }
+}
 
         stage('Backup Old Build') {
-            steps {
-                sshagent(credentials: [env.CREDENTIALS_ID]) {
-                    sh """
-                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
-                            echo "[INFO] Renaming old dist directory...";
-                            if [ -d /var/www/html/pinga ]; then
-                                BACKUP_DIR="/home/ubuntu/backup-${params.ENVIRONMENT}-${sh(script: 'date +%Y-%m-%d', returnStdout: true).trim()}"
-                                echo "[INFO] Creating unique backup directory: $BACKUP_DIR";
-                                mkdir -p $BACKUP_DIR || { echo "[ERROR] Failed to create backup directory"; exit 1; }
-                                sudo mv /var/www/html/pinga \$BACKUP_DIR || { echo "[ERROR] Backup failed"; exit 1; }
-                                echo "[INFO] Backup completed successfully at $BACKUP_DIR.";
-                            else
-                                echo "[INFO] No directory to backup.";
-                            fi
-                        "
-                    """
-                }
-            }
+    steps {
+        sshagent(credentials: [env.CREDENTIALS_ID]) {
+            sh """
+                ssh -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/vkey.pem ubuntu@ec2-3-109-179-70.ap-south-1.compute.amazonaws.com '
+                    echo "[INFO] Renaming old dist directory...";
+                    if [ -d /var/www/html/pinga ]; then
+                        BACKUP_DIR="/home/ubuntu/backup-${params.ENVIRONMENT}-\$(date +%d%b%Y_%H%M%S)"
+                        echo "[INFO] Creating unique backup directory: \$BACKUP_DIR";
+                        mkdir -p \$BACKUP_DIR || { echo "[ERROR] Failed to create backup directory"; exit 1; }
+                        sudo mv /var/www/html/pinga \$BACKUP_DIR || { echo "[ERROR] Backup failed"; exit 1; }
+                        echo "[INFO] Backup completed successfully at \$BACKUP_DIR.";
+                    else
+                        echo "[INFO] No directory to backup.";
+                    fi
+                '
+            """
         }
+    }
+}
 
 
         stage('Prepare Deployment') {
-            steps {
-                script {
-                    try {
-                        sh """
-                            ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
-                                set -e
-                                set -o pipefail
+    steps {
+        script {
+            try {
+                sh """
+                    ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} '
+                        # Use Bash explicitly
+                        if [ -x /bin/bash ]; then
+                            exec /bin/bash
+                        fi
 
-                                echo "[INFO] Starting deployment preparation..."
-                                BACKUP_DIR="/home/ubuntu/pinga-backup-$(date +"%d%b%Y%H%M%S")"
-                                echo "[DEBUG] Calculated backup directory: $BACKUP_DIR"
+                        # Enable debugging and strict error handling
+                        set -e
+                        set -o pipefail
 
-                                if [ -d /var/www/html/pinga ]; then
-                                    echo "[INFO] Found existing /var/www/html/pinga directory."
-                                    echo "[INFO] Moving it to backup directory..."
-                                    sudo mv /var/www/html/pinga $BACKUP_DIR
-                                    echo "[INFO] Successfully moved /var/www/html/pinga to $BACKUP_DIR."
-                                else
-                                    echo "[INFO] No /var/www/html/pinga directory found, skipping backup."
-                                fi
+                        echo "[INFO] Starting deployment preparation..."
+                        BACKUP_DIR="/home/ubuntu/pinga-backup-\$(date +%d%b%Y%H%M%S)"
+                        echo "[DEBUG] Calculated backup directory: \$BACKUP_DIR"
 
-                                echo "[INFO] Deployment preparation completed successfully."
-                            "
-                        """
-                    } catch (Exception e) {
-                        echo "[ERROR] Deployment preparation failed."
-                        echo "[DEBUG] Error: ${e.getMessage()}"
-                        error "Stage failed: Prepare Deployment."
-                    }
-                }
+                        if [ -d /var/www/html/pinga ]; then
+                            echo "[INFO] Found existing /var/www/html/pinga directory."
+                            echo "[INFO] Moving it to backup directory..."
+                            sudo mv /var/www/html/pinga \$BACKUP_DIR
+                            echo "[INFO] Successfully moved /var/www/html/pinga to \$BACKUP_DIR."
+                        else
+                            echo "[INFO] No /var/www/html/pinga directory found, skipping backup."
+                        fi
+
+                        echo "[INFO] Deployment preparation completed successfully."
+                    '
+                """
+            } catch (Exception e) {
+                echo "[ERROR] Deployment preparation failed."
+                echo "[DEBUG] Error: ${e.getMessage()}"
+                error "Stage failed: Prepare Deployment."
             }
         }
+    }
+}
 
         stage('Deploy New Build') {
             steps {
@@ -316,10 +330,10 @@ pipeline {
                 script {
                     def message = "Deployment of ${params.ENVIRONMENT} build completed successfully!"
                     slackSend(
-                        channel: 'jenkins',
+                        channel: 'jenkins', // Replace with your Slack channel
                         color: 'good',
                         message: message,
-                        tokenCredentialId: 'slack-bot-token'
+                        tokenCredentialId: 'slack-bot-token' // Replace with the ID of your Slack credential
                     )
                 }
             }
@@ -327,40 +341,51 @@ pipeline {
     }
 
     post {
-        failure {
-            script {
-                echo "[ERROR] Deployment failed. Initiating rollback and sending failure notification..."
-                sshagent(credentials: [env.CREDENTIALS_ID]) {
-                    sh """
-                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} << 'EOF'
-                            set -e
+    failure {
+    script {
+        echo "[ERROR] Deployment failed. Initiating rollback and sending failure notification..."
+        // Rollback logic
+        sshagent(credentials: [CREDENTIALS_ID]) {
+            sh """
+                ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} << 'EOF'
+                    # Stop apache service to rollback
+                    echo "[INFO] Stopping Apache service..."
+                    sudo service apache2 stop || { echo '[ERROR] Apache2 stop failed'; exit 1; }
 
-                            echo "[INFO] Stopping Apache service..."
-                            sudo service apache2 stop || { echo '[ERROR] Apache2 stop failed'; exit 1; }
+                    # Locate the most recent backup
+                    BACKUP_DIR=\$(ls -td /home/ubuntu/backup-dist-* | head -n 1)
+                    if [ -d "\$BACKUP_DIR" ]; then
+                        echo "[INFO] Most recent backup found: \$BACKUP_DIR"
 
-                            BACKUP_DIR=$(ls -td /home/ubuntu/backup-dist-* | head -n 1)
-                            if [ -d "$BACKUP_DIR" ]; then
-                                echo "[INFO] Most recent backup found: $BACKUP_DIR"
+                        # Remove the current dist directory
+                        echo "[INFO] Removing old dist directory..."
+                        sudo rm -rf /var/www/html/ || { echo '[ERROR] Removal failed'; exit 1; }
 
-                                echo "[INFO] Removing old dist directory..."
-                                sudo rm -rf /var/www/html/ || { echo '[ERROR] Removal failed'; exit 1; }
+                        # Restore the most recent backup
+                        echo "[INFO] Restoring backup from \$BACKUP_DIR..."
+                        sudo cp -r "\$BACKUP_DIR" /var/www/html/ || { echo '[ERROR] Restore failed'; exit 1; }
 
-                                echo "[INFO] Restoring backup from $BACKUP_DIR..."
-                                sudo cp -r "$BACKUP_DIR" /var/www/html/ || { echo '[ERROR] Restore failed'; exit 1; }
+                        # Update permissions
+                        echo "[INFO] Updating permissions..."
+                        sudo chown -R www-data:www-data /var/www || { echo '[ERROR] Permissions update failed'; exit 1; }
+                        
+                        else
+                        echo "[ERROR] No backup directory found for rollback."
+                        exit 1
+                    fi
+                    
+                    # Restart apache service
+                    echo "[INFO] Restarting Apache service..."
+                    sudo service apache2 start || { echo '[ERROR] Apache2 start failed'; exit 1; }
 
-                                echo "[INFO] Updating permissions..."
-                                sudo chown -R www-data:www-data /var/www || { echo '[ERROR] Permissions update failed'; exit 1; }
-
-                                echo "[INFO] Restarting Apache service..."
-                                sudo systemctl restart apache2 || { echo '[ERROR] Apache2 start failed'; exit 1; }
-                            else
-                                echo "[ERROR] No backup directory found for rollback."
-                                exit 1
-                            fi
-                        EOF
-                    """
-                }
-            }
+                    # Restart apache service
+                    echo "[INFO] Restarting Apache service..."
+                    sudo systemctl restart apache2 || { echo '[ERROR] Apache2 start failed'; exit 1; }
+                EOF
+            """
         }
     }
+}
+
+}
 }

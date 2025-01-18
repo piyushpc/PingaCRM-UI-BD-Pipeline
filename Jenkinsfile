@@ -94,49 +94,44 @@ pipeline {
         }
 
         stage('Handle SVN Checkout/Update') {
-            steps {
-                script {
-                    if (params.UPDATE_SVN) {
-                        echo "[INFO] UPDATE_SVN is enabled. Checking SVN directory..."
+    steps {
+        script {
+            if (params.UPDATE_SVN) {
+                echo "[INFO] UPDATE_SVN is enabled. Performing fresh SVN checkout..."
+                
+                // Define SVN URL and local directory
+                def svnUrl = "https://extsvn.pingacrm.com/svn/pingacrm-frontend-new/trunk"
+                def svnDir = "/home/ubuntu/pinga/trunk"
+
+                withCredentials([usernamePassword(credentialsId: 'svn-credentials-id', 
+                                                  usernameVariable: 'SVN_USER', 
+                                                  passwordVariable: 'SVN_PASS')]) {
+                    // Always perform a fresh checkout when UPDATE_SVN is true
+                    sh """
+                        echo '[INFO] Removing existing SVN directory...'
+                        sudo rm -rf ${svnDir}
                         
-                        // Define SVN URL and local directory
-                        def svnUrl = "https://extsvn.pingacrm.com/svn/pingacrm-frontend-new/trunk"
-                        def svnDir = "/home/ubuntu/pinga/trunk"
-
-                        withCredentials([usernamePassword(credentialsId: 'svn-credentials-id', 
-                                                          usernameVariable: 'SVN_USER', 
-                                                          passwordVariable: 'SVN_PASS')]) {
-                            // Check if the SVN directory exists
-                            def dirExists = sh(script: "if [ -d ${svnDir} ]; then echo exists; else echo not_exists; fi", returnStdout: true).trim()
-                            
-                            if (dirExists == "exists") {
-                                echo "[INFO] SVN directory exists. Performing svn update..."
-                                sh """
-                                sudo rm -rf ${svnDir}
-                                svn update --username ${SVN_USER} --password ${SVN_PASS} ${svnDir}
-                                """
-                            } else {
-                                echo "[INFO] SVN directory does not exist. Performing fresh svn checkout..."
-                                sh """
-                                svn checkout --username ${SVN_USER} --password ${SVN_PASS} ${svnUrl} ${svnDir}
-                                """
-                            }
-                        }
-                        echo "[INFO] SVN operation completed successfully."
-                    } else {
-                        echo "[INFO] UPDATE_SVN is disabled. Skipping SVN operations."
-                    }
+                        echo '[INFO] Checking out repository from SVN...'
+                        svn checkout --username $SVN_USER --password $SVN_PASS ${svnUrl} ${svnDir}
+                    """
                 }
+                echo "[INFO] Fresh SVN checkout completed successfully."
+            } else {
+                echo "[INFO] UPDATE_SVN is disabled. Skipping SVN operations."
             }
         }
+    }
+}
 
-        stage('Clean Old Build Files') {
-            steps {
-                echo "[INFO] Cleaning up old build files from previous deployments."
-                sh "sudo rm -rf /home/ubuntu/pinga/trunk/dist"
-                echo "[INFO] Old build files removed."
-            }
-        }
+
+
+      //  stage('Clean Old Build Files') {
+       //     steps {
+       //         echo "[INFO] Cleaning up old build files from previous deployments."
+       //         sh "sudo rm -rf /home/ubuntu/pinga/trunk/dist/*"
+       //         echo "[INFO] Old build files removed."
+       //     }
+//        }
 
         stage('Copy Environment-Specific Configuration File') {
             steps {
@@ -208,24 +203,28 @@ pipeline {
         }
 
         stage('Download and Extract Build from S3') {
-            steps {
-                sshagent(credentials: [env.CREDENTIALS_ID]) {
-                    sh """
-                    echo '[INFO] Downloading the new build from S3...'
-                    ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
-                        aws s3 cp s3://${S3_BUCKET}/${env.DIST_FILE} /home/ubuntu/${env.DIST_FILE} &&
-                        echo '[INFO] Build file downloaded successfully.' ||
-                        (echo '[ERROR] Build file download failed.' && exit 1)
-                        
-                        echo '[INFO] Extracting the downloaded build file...'
-                        tar -xvf /home/ubuntu/${env.DIST_FILE} -C /home/ubuntu/${params.ENVIRONMENT}-dist &&
-                        echo '[INFO] Build file extracted successfully.' ||
-                        (echo '[ERROR] Extraction failed.' && exit 1)
-                    "
-                    """
-                }
-            }
+    steps {
+        sshagent(credentials: [env.CREDENTIALS_ID]) {
+            sh """
+            echo '[INFO] Downloading the new build from S3...'
+            ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
+                aws s3 cp s3://${S3_BUCKET}/${env.DIST_FILE} /home/ubuntu/${env.DIST_FILE} &&
+                echo '[INFO] Build file downloaded successfully.' ||
+                (echo '[ERROR] Build file download failed.' && exit 1)
+
+                echo '[INFO] Ensuring target directory exists...'
+                mkdir -p /home/ubuntu/${params.ENVIRONMENT}-dist ||
+                (echo '[ERROR] Failed to create target directory.' && exit 1)
+
+                echo '[INFO] Extracting the downloaded build file...'
+                sudo tar -xvf /home/ubuntu/${env.DIST_FILE} -C /home/ubuntu/${params.ENVIRONMENT}-dist &&
+                echo '[INFO] Build file extracted successfully.' ||
+                (echo '[ERROR] Extraction failed.' && exit 1)
+            "
+            """
         }
+    }
+}
 
         stage('Backup Old Build') {
     steps {
@@ -234,7 +233,7 @@ pipeline {
                 ssh -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/vkey.pem ubuntu@ec2-3-109-179-70.ap-south-1.compute.amazonaws.com '
                     echo "[INFO] Renaming old dist directory...";
                     if [ -d /var/www/html/pinga ]; then
-                        BACKUP_DIR="/home/ubuntu/pinga-backup-\$(date +%d%b%Y_%H%M%S)"
+                        BACKUP_DIR="/home/ubuntu/backup-${params.ENVIRONMENT}-\$(date +%d%b%Y_%H%M%S)"
                         echo "[INFO] Creating unique backup directory: \$BACKUP_DIR";
                         mkdir -p \$BACKUP_DIR || { echo "[ERROR] Failed to create backup directory"; exit 1; }
                         sudo mv /var/www/html/pinga \$BACKUP_DIR || { echo "[ERROR] Backup failed"; exit 1; }
@@ -295,7 +294,7 @@ pipeline {
                     sh """
                         ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
                             echo '[INFO] Removing old deployment...';
-                            sudo rm -rf /var/www/html/pinga
+                            sudo rm -rf /var/www/html/pinga/
                             echo '[INFO] Deploying new build...';
                             sudo mv /home/ubuntu/${params.ENVIRONMENT}-dist/dist/* /var/www/html/pinga
                             echo '[INFO] Updating permissions...';
@@ -364,7 +363,7 @@ pipeline {
 
                         # Restore the most recent backup
                         echo "[INFO] Restoring backup from \$BACKUP_DIR..."
-                        sudo cp "\$BACKUP_DIR" /var/www/html/ || { echo '[ERROR] Restore failed'; exit 1; }
+                        sudo cp -r "\$BACKUP_DIR" /var/www/html/ || { echo '[ERROR] Restore failed'; exit 1; }
 
                         # Update permissions
                         echo "[INFO] Updating permissions..."
@@ -378,6 +377,10 @@ pipeline {
                     # Restart apache service
                     echo "[INFO] Restarting Apache service..."
                     sudo service apache2 start || { echo '[ERROR] Apache2 start failed'; exit 1; }
+
+                    # Restart apache service
+                    echo "[INFO] Restarting Apache service..."
+                    sudo systemctl restart apache2 || { echo '[ERROR] Apache2 start failed'; exit 1; }
                 EOF
             """
         }

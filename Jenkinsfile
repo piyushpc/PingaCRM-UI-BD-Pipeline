@@ -228,7 +228,7 @@ pipeline {
                                 BACKUP_DIR="/home/ubuntu/backup-${params.ENVIRONMENT}-$(date +"%d%b%Y_%H%M%S")"
                                 echo "[INFO] Creating unique backup directory: $BACKUP_DIR";
                                 mkdir -p $BACKUP_DIR || { echo "[ERROR] Failed to create backup directory"; exit 1; }
-                                sudo mv /var/www/html/pinga $BACKUP_DIR || { echo "[ERROR] Backup failed"; exit 1; }
+                                sudo mv /var/www/html/pinga /$BACKUP_DIR || { echo "[ERROR] Backup failed"; exit 1; }
                                 echo "[INFO] Backup completed successfully at $BACKUP_DIR.";
                             else
                                 echo "[INFO] No directory to backup.";
@@ -238,6 +238,7 @@ pipeline {
                 }
             }
         }
+
 
         stage('Prepare Deployment') {
             steps {

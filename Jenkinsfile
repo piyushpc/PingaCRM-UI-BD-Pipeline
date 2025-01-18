@@ -225,7 +225,7 @@ pipeline {
                         ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} '
                             echo "[INFO] Renaming old dist directory...";
                             if [ -d /var/www/html/pinga ]; then
-                                BACKUP_DIR="/home/ubuntu/backup-${params.ENVIRONMENT}-$(date +"%d%b%Y_%H%M%S")"
+                                BACKUP_DIR="/home/ubuntu/backup-${params.ENVIRONMENT}-${sh(script: 'date +%Y-%m-%d', returnStdout: true).trim()}"
                                 echo "[INFO] Creating unique backup directory: $BACKUP_DIR";
                                 mkdir -p $BACKUP_DIR || { echo "[ERROR] Failed to create backup directory"; exit 1; }
                                 sudo mv /var/www/html/pinga \$BACKUP_DIR || { echo "[ERROR] Backup failed"; exit 1; }

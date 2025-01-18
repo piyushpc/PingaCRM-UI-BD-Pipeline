@@ -222,7 +222,7 @@ pipeline {
             steps {
                 sshagent(credentials: [env.CREDENTIALS_ID]) {
                     sh """
-                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} '
+                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
                             echo "[INFO] Renaming old dist directory...";
                             if [ -d /var/www/html/pinga ]; then
                                 BACKUP_DIR="/home/ubuntu/backup-${params.ENVIRONMENT}-${sh(script: 'date +%Y-%m-%d', returnStdout: true).trim()}"
@@ -233,7 +233,7 @@ pipeline {
                             else
                                 echo "[INFO] No directory to backup.";
                             fi
-                        '
+                        "
                     """
                 }
             }
@@ -245,7 +245,7 @@ pipeline {
                 script {
                     try {
                         sh """
-                            ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} '
+                            ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "
                                 set -e
                                 set -o pipefail
 
@@ -263,7 +263,7 @@ pipeline {
                                 fi
 
                                 echo "[INFO] Deployment preparation completed successfully."
-                            '
+                            "
                         """
                     } catch (Exception e) {
                         echo "[ERROR] Deployment preparation failed."

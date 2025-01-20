@@ -11,8 +11,8 @@ pipeline {
         SSH_KEY_PATH = '/var/lib/jenkins/.ssh/vkey.pem'
         BUILD_SSH_KEY_PATH = '/var/lib/jenkins/.ssh/jenkins_ongraph.pem' 
         SLACK_CHANNEL = "slack-bot-token"
-        BUILD_SERVER = 'ec2-13-234-171-227.ap-south-1.compute.amazonaws.com'
-        BUILD_CREDENTIALS_ID = 'build-server-ssh-key'
+        //BUILD_SERVER = 'ec2-13-234-171-227.ap-south-1.compute.amazonaws.com'
+        //BUILD_CREDENTIALS_ID = 'build-server-ssh-key'
         //BACKUP_DIR='/home/ubuntu/pinga-backup-$(date +%d%b%Y)'
        // BACKUP_DIR=\$(ls -td /home/ubuntu/pinga-backup-* | head -n 1)
         //BACKUP_DIR="/home/ubuntu"
@@ -77,50 +77,55 @@ pipeline {
         }
 
         stage('Run Build Process on Build Server') {
-            steps {
-                sshagent(credentials: [env.BUILD_CREDENTIALS_ID]) {
-                    sh """
-                        ssh -o StrictHostKeyChecking=no -i "/var/lib/jenkins/.ssh/jenkins_ongraph.pem" root@ec2-13-234-171-227.ap-south-1.compute.amazonaws.com << 'EOF'
-                            echo "[INFO] Starting build process on build server."
+    steps {
+        sh """
+            ssh -o StrictHostKeyChecking=no -i "/var/lib/jenkins/.ssh/jenkins_ongraph.pem" ubuntu@ec2-13-234-171-227.ap-south-1.compute.amazonaws.com << 'EOF'
+                echo "[INFO] Starting build process on build server."
 
-                            # Backup Current Code
-                            BACKUP_DIR="/home/ubuntu/pinga-\$(date +%d%b%Y)-backup"
-                            echo "[INFO] Backing up current code to \${BACKUP_DIR}"
-                            sudo cp -R /home/ubuntu/pinga \${BACKUP_DIR} || { echo "[ERROR] Backup failed"; exit 1; }
+                # Backup Current Code
+                BACKUP_DIR="/home/ubuntu/pinga-\$(date +%d%b%Y)-backup"
+                echo "[INFO] Backing up current code to \${BACKUP_DIR}"
+                sudo cp -R /home/ubuntu/pinga \${BACKUP_DIR} || { echo "[ERROR] Backup failed"; exit 1; }
 
-                            # Handle SVN Checkout/Update
-                            if [ "${params.UPDATE_SVN}" = "true" ]; then
-                                echo "[INFO] Updating code from SVN repository..."
-                                SVN_URL="https://extsvn.pingacrm.com/svn/pingacrm-frontend-new/trunk"
-                                sudo rm -rf /home/ubuntu/pinga/trunk
-                                svn checkout --username $SVN_USER --password $SVN_PASS ${SVN_URL} /home/ubuntu/pinga/trunk
-                            fi
-
-                            # Copy Environment-Specific Configuration File
-                            CONFIG_FILE="/home/ubuntu/data.service.ts.${params.ENVIRONMENT}"
-                            cp \${CONFIG_FILE} /home/ubuntu/pinga/trunk/src/app/service/data.service.ts || { echo "[ERROR] Failed to copy configuration file"; exit 1; }
-
-                            # Install Dependencies and Build
-                            cd /home/ubuntu/pinga/trunk
-                            echo "[INFO] Installing dependencies and building..."
-                            rm -rf dist node_modules package-lock.json
-                            npm install --legacy-peer-deps
-                            npm run build || { echo "[ERROR] Build failed"; exit 1; }
-
-                            # Compress Build Artifacts
-                            TAR_PATH="/home/ubuntu/dist-${params.ENVIRONMENT}-\$(date +%d%b%Y)-new.tar.gz"
-                            tar -czvf \${TAR_PATH} dist || { echo "[ERROR] Compression failed"; exit 1; }
-                            echo "[INFO] Build artifacts compressed to \${TAR_PATH}"
-
-                            # Upload to S3
-                            aws s3 cp \${TAR_PATH} s3://${S3_BUCKET}/ || { echo "[ERROR] Failed to upload artifacts to S3"; exit 1; }
-
-                            echo "[INFO] Build process completed successfully on build server."
-                        EOF
-                    """
+                # Handle SVN Checkout/Update (with credentials from Jenkins)
+                withCredentials([usernamePassword(credentialsId: 'svn-credentials', usernameVariable: 'SVN_USER', passwordVariable: 'SVN_PASS')]) {
+                    if [ "${params.UPDATE_SVN}" = "true" ]; then
+                        echo "[INFO] Updating code from SVN repository..."
+                        SVN_URL="https://extsvn.pingacrm.com/svn/pingacrm-frontend-new/trunk"
+                        sudo rm -rf /home/ubuntu/pinga/trunk
+                        svn checkout --username \$SVN_USER --password \$SVN_PASS ${SVN_URL} /home/ubuntu/pinga/trunk || { echo "[ERROR] SVN checkout failed"; exit 1; }
+                    fi
                 }
-            }
-        }
+
+                # Copy Environment-Specific Configuration File
+                CONFIG_FILE="/home/ubuntu/data.service.ts.${params.ENVIRONMENT}"
+                if [ ! -f \${CONFIG_FILE} ]; then
+                    echo "[ERROR] Configuration file does not exist: \${CONFIG_FILE}"
+                    exit 1
+                fi
+                cp \${CONFIG_FILE} /home/ubuntu/pinga/trunk/src/app/service/data.service.ts || { echo "[ERROR] Failed to copy configuration file"; exit 1; }
+
+                # Install Dependencies and Build
+                cd /home/ubuntu/pinga/trunk
+                echo "[INFO] Installing dependencies and building..."
+                rm -rf dist node_modules package-lock.json
+                npm install --legacy-peer-deps || { echo "[ERROR] NPM install failed"; exit 1; }
+                npm run build || { echo "[ERROR] Build failed"; exit 1; }
+
+                # Compress Build Artifacts
+                TAR_PATH="/home/ubuntu/dist-${params.ENVIRONMENT}-\$(date +%d%b%Y)-new.tar.gz"
+                tar -czvf \${TAR_PATH} dist || { echo "[ERROR] Compression failed"; exit 1; }
+                echo "[INFO] Build artifacts compressed to \${TAR_PATH}"
+
+                # Upload to S3
+                aws s3 cp \${TAR_PATH} s3://${S3_BUCKET}/ || { echo "[ERROR] Failed to upload artifacts to S3"; exit 1; }
+
+                echo "[INFO] Build process completed successfully on build server."
+            EOF
+        """
+    }
+}
+
 
 
         stage('Verify Server Availability') {

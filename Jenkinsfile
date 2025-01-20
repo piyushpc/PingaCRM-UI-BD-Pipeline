@@ -80,7 +80,7 @@ pipeline {
             steps {
                 sshagent(credentials: [env.BUILD_CREDENTIALS_ID]) {
                     sh """
-                        ssh -o StrictHostKeyChecking=no -i ${BUILD_SSH_KEY_PATH} ubuntu@${BUILD_SERVER} << 'EOF'
+                        ssh -o StrictHostKeyChecking=no -i "/var/lib/jenkins/.ssh/jenkins_ongraph.pem" root@ec2-13-234-171-227.ap-south-1.compute.amazonaws.com << 'EOF'
                             echo "[INFO] Starting build process on build server."
 
                             # Backup Current Code

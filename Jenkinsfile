@@ -145,20 +145,29 @@ pipeline {
         }
 
         stage('Install Dependencies & Build') {
-            steps {
-                dir('/home/ubuntu/pinga/trunk') {
-                    echo "[INFO] Installing dependencies and preparing build."
-                    sh '''
-                        rm -rf node_modules package-lock.json
-                        npm install --legacy-peer-deps
-                        npm audit fix || echo "Audit fix failed; ignoring remaining issues."
-                        npm audit fix --force || echo "Force audit fix failed."
-                        npm run build
-                        echo "[INFO] Build process completed successfully."
-                    '''
-                }
-            }
+    steps {
+        dir('/home/ubuntu/pinga/trunk') {
+            echo "[INFO] Installing dependencies and preparing build."
+            sh '''
+                # Remove the old dist directory to avoid residual files
+                rm -rf dist
+                rm -rf node_modules package-lock.json
+
+                # Install dependencies with legacy peer deps
+                npm install --legacy-peer-deps
+
+                # Attempt to fix any vulnerabilities
+                npm audit fix || echo "Audit fix failed; ignoring remaining issues."
+                npm audit fix --force || echo "Force audit fix failed."
+
+                # Run the build process
+                npm run build
+
+                echo "[INFO] Build process completed successfully."
+            '''
         }
+    }
+}
 
         stage('Compress & Upload Build Artifacts') {
             steps {

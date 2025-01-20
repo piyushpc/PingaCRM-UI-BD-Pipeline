@@ -7,9 +7,11 @@ pipeline {
         BUILD_DIR = "/home/ubuntu"
         DIST_FILE = "dist-${params.ENVIRONMENT}-${new Date().format('ddMMMyyyy')}-new.tar.gz"
         S3_BUCKET = 'pinga-builds'
+         // Paths for SSH keys
         SSH_KEY_PATH = '/var/lib/jenkins/.ssh/vkey.pem'
+        BUILD_SSH_KEY_PATH = '/var/lib/jenkins/.ssh/jenkins_ongraph.pem' 
         SLACK_CHANNEL = "slack-bot-token"
-        BUILD_SERVER = 'pingacrm-ui-build'
+        BUILD_SERVER = 'ec2-13-234-171-227.ap-south-1.compute.amazonaws.com'
         BUILD_CREDENTIALS_ID = 'build-server-ssh-key'
         //BACKUP_DIR='/home/ubuntu/pinga-backup-$(date +%d%b%Y)'
        // BACKUP_DIR=\$(ls -td /home/ubuntu/pinga-backup-* | head -n 1)
@@ -78,7 +80,7 @@ pipeline {
             steps {
                 sshagent(credentials: [env.BUILD_CREDENTIALS_ID]) {
                     sh """
-                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${BUILD_SERVER} << 'EOF'
+                        ssh -o StrictHostKeyChecking=no -i ${BUILD_SSH_KEY_PATH} ubuntu@${BUILD_SERVER} << 'EOF'
                             echo "[INFO] Starting build process on build server."
 
                             # Backup Current Code

@@ -11,8 +11,8 @@ pipeline {
         SSH_KEY_PATH = '/var/lib/jenkins/.ssh/vkey.pem'
         BUILD_SSH_KEY_PATH = '/var/lib/jenkins/.ssh/jenkins_ongraph.pem' 
         SLACK_CHANNEL = "slack-bot-token"
-        //BUILD_SERVER = 'ec2-13-234-171-227.ap-south-1.compute.amazonaws.com'
-        //BUILD_CREDENTIALS_ID = 'build-server-ssh-key'
+        BUILD_SERVER = 'ec2-13-234-171-227.ap-south-1.compute.amazonaws.com'
+        BUILD_CREDENTIALS_ID = 'build-server-ssh-key'
         //BACKUP_DIR='/home/ubuntu/pinga-backup-$(date +%d%b%Y)'
        // BACKUP_DIR=\$(ls -td /home/ubuntu/pinga-backup-* | head -n 1)
         //BACKUP_DIR="/home/ubuntu"
@@ -78,6 +78,9 @@ pipeline {
 
         stage('Run Build Process on Build Server') {
     steps {
+        script {
+            echo "[INFO] Checking SSH Key Path: ${BUILD_SSH_KEY_PATH}"
+            echo "[INFO] Checking Build Server: ${BUILD_SERVER}"
         sh """
             ssh -o StrictHostKeyChecking=no -i "/var/lib/jenkins/.ssh/jenkins_ongraph.pem" ubuntu@ec2-13-234-171-227.ap-south-1.compute.amazonaws.com << 'EOF'
                 echo "[INFO] Starting build process on build server."
@@ -125,7 +128,7 @@ pipeline {
         """
     }
 }
-
+        }
 
 
         stage('Verify Server Availability') {

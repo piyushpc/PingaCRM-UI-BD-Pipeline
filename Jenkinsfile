@@ -59,10 +59,10 @@ pipeline {
                             env.FRONTEND_SERVER = "ec2-65-1-130-96.ap-south-1.compute.amazonaws.com"
                             env.CREDENTIALS_ID = "uat-frontend-ssh-key"
                             break
-                        case 'uat':
-                            env.DIST_FILE = "dist-uat-${env.BUILD_DATE}-new.tar.gz"
-                            env.FRONTEND_SERVER = "dev.pingacrm.com"
-                            env.CREDENTIALS_ID = "dev-frontend-ssh-key"
+                        case 'prod':
+                            env.DIST_FILE = "dist-prod-${env.BUILD_DATE}-new.tar.gz"
+                            env.FRONTEND_SERVER = "prod.pingacrm.com"
+                            env.CREDENTIALS_ID = "prod-frontend-ssh-key"
                             break
                         default:
                             error "[ERROR] Invalid environment: ${params.ENVIRONMENT}. Use 'dev', 'uat', or 'prod'."
@@ -145,20 +145,29 @@ pipeline {
         }
 
         stage('Install Dependencies & Build') {
-            steps {
-                dir('/home/ubuntu/pinga/trunk') {
-                    echo "[INFO] Installing dependencies and preparing build."
-                    sh '''
-                        rm -rf node_modules package-lock.json
-                        npm install --legacy-peer-deps
-                        npm audit fix || echo "Audit fix failed; ignoring remaining issues."
-                        npm audit fix --force || echo "Force audit fix failed."
-                        npm run build
-                        echo "[INFO] Build process completed successfully."
-                    '''
-                }
-            }
+    steps {
+        dir('/home/ubuntu/pinga/trunk') {
+            echo "[INFO] Installing dependencies and preparing build."
+            sh '''
+                # Remove the old dist directory to avoid residual files
+                rm -rf dist
+                rm -rf node_modules package-lock.json
+
+                # Install dependencies with legacy peer deps
+                npm install --legacy-peer-deps
+
+                # Attempt to fix any vulnerabilities
+                npm audit fix || echo "Audit fix failed; ignoring remaining issues."
+                npm audit fix --force || echo "Force audit fix failed."
+
+                # Run the build process
+                npm run build
+
+                echo "[INFO] Build process completed successfully."
+            '''
         }
+    }
+}
 
         stage('Compress & Upload Build Artifacts') {
             steps {

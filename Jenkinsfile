@@ -59,10 +59,10 @@ pipeline {
                             env.FRONTEND_SERVER = "ec2-65-1-130-96.ap-south-1.compute.amazonaws.com"
                             env.CREDENTIALS_ID = "uat-frontend-ssh-key"
                             break
-                        case 'uat':
-                            env.DIST_FILE = "dist-uat-${env.BUILD_DATE}-new.tar.gz"
-                            env.FRONTEND_SERVER = "dev.pingacrm.com"
-                            env.CREDENTIALS_ID = "dev-frontend-ssh-key"
+                        case 'prod':
+                            env.DIST_FILE = "dist-prod-${env.BUILD_DATE}-new.tar.gz"
+                            env.FRONTEND_SERVER = "prod.pingacrm.com"
+                            env.CREDENTIALS_ID = "prod-frontend-ssh-key"
                             break
                         default:
                             error "[ERROR] Invalid environment: ${params.ENVIRONMENT}. Use 'dev', 'uat', or 'prod'."

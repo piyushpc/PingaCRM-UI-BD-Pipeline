@@ -9,6 +9,8 @@ pipeline {
         S3_BUCKET = 'pinga-builds'
         SSH_KEY_PATH = '/var/lib/jenkins/.ssh/vkey.pem'
         SLACK_CHANNEL = "slack-bot-token"
+        BUILD_SERVER = 'pingacrm-ui-build'
+        BUILD_CREDENTIALS_ID = 'build-server-ssh-key'
         //BACKUP_DIR='/home/ubuntu/pinga-backup-$(date +%d%b%Y)'
        // BACKUP_DIR=\$(ls -td /home/ubuntu/pinga-backup-* | head -n 1)
         //BACKUP_DIR="/home/ubuntu"
@@ -72,120 +74,52 @@ pipeline {
             }
         }
 
-        stage('Backup Current Code') {
+        stage('Run Build Process on Build Server') {
             steps {
-                script {
-                    def backupPath = "/home/ubuntu/pinga-${env.BUILD_DATE}-backup"
-                    echo "[INFO] Backing up current deployment at /home/ubuntu/pinga to ${backupPath}"
+                sshagent(credentials: [env.BUILD_CREDENTIALS_ID]) {
                     sh """
-                        if [ ! -d /home/ubuntu/pinga ]; then
-                            echo "[ERROR] Source directory /home/ubuntu/pinga does not exist!"
-                            exit 1
-                        fi
-                        sudo cp -R /home/ubuntu/pinga ${backupPath}
-                        if [ ! -d ${backupPath} ]; then
-                            echo "[ERROR] Backup failed!"
-                            exit 1
-                        fi
+                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${BUILD_SERVER} << 'EOF'
+                            echo "[INFO] Starting build process on build server."
+
+                            # Backup Current Code
+                            BACKUP_DIR="/home/ubuntu/pinga-\$(date +%d%b%Y)-backup"
+                            echo "[INFO] Backing up current code to \${BACKUP_DIR}"
+                            sudo cp -R /home/ubuntu/pinga \${BACKUP_DIR} || { echo "[ERROR] Backup failed"; exit 1; }
+
+                            # Handle SVN Checkout/Update
+                            if [ "${params.UPDATE_SVN}" = "true" ]; then
+                                echo "[INFO] Updating code from SVN repository..."
+                                SVN_URL="https://extsvn.pingacrm.com/svn/pingacrm-frontend-new/trunk"
+                                sudo rm -rf /home/ubuntu/pinga/trunk
+                                svn checkout --username $SVN_USER --password $SVN_PASS ${SVN_URL} /home/ubuntu/pinga/trunk
+                            fi
+
+                            # Copy Environment-Specific Configuration File
+                            CONFIG_FILE="/home/ubuntu/data.service.ts.${params.ENVIRONMENT}"
+                            cp \${CONFIG_FILE} /home/ubuntu/pinga/trunk/src/app/service/data.service.ts || { echo "[ERROR] Failed to copy configuration file"; exit 1; }
+
+                            # Install Dependencies and Build
+                            cd /home/ubuntu/pinga/trunk
+                            echo "[INFO] Installing dependencies and building..."
+                            rm -rf dist node_modules package-lock.json
+                            npm install --legacy-peer-deps
+                            npm run build || { echo "[ERROR] Build failed"; exit 1; }
+
+                            # Compress Build Artifacts
+                            TAR_PATH="/home/ubuntu/dist-${params.ENVIRONMENT}-\$(date +%d%b%Y)-new.tar.gz"
+                            tar -czvf \${TAR_PATH} dist || { echo "[ERROR] Compression failed"; exit 1; }
+                            echo "[INFO] Build artifacts compressed to \${TAR_PATH}"
+
+                            # Upload to S3
+                            aws s3 cp \${TAR_PATH} s3://${S3_BUCKET}/ || { echo "[ERROR] Failed to upload artifacts to S3"; exit 1; }
+
+                            echo "[INFO] Build process completed successfully on build server."
+                        EOF
                     """
-                    echo "[INFO] Backup completed successfully at ${backupPath}."
                 }
             }
         }
 
-        stage('Handle SVN Checkout/Update') {
-    steps {
-        script {
-            if (params.UPDATE_SVN) {
-                echo "[INFO] UPDATE_SVN is enabled. Performing fresh SVN checkout..."
-                
-                // Define SVN URL and local directory
-                def svnUrl = "https://extsvn.pingacrm.com/svn/pingacrm-frontend-new/trunk"
-                def svnDir = "/home/ubuntu/pinga/trunk"
-
-                withCredentials([usernamePassword(credentialsId: 'svn-credentials-id', 
-                                                  usernameVariable: 'SVN_USER', 
-                                                  passwordVariable: 'SVN_PASS')]) {
-                    // Always perform a fresh checkout when UPDATE_SVN is true
-                    sh """
-                        echo '[INFO] Removing existing SVN directory...'
-                        sudo rm -rf ${svnDir}
-                        
-                        echo '[INFO] Checking out repository from SVN...'
-                        svn checkout --username $SVN_USER --password $SVN_PASS ${svnUrl} ${svnDir}
-                    """
-                }
-                echo "[INFO] Fresh SVN checkout completed successfully."
-            } else {
-                echo "[INFO] UPDATE_SVN is disabled. Skipping SVN operations."
-            }
-        }
-    }
-}
-
-
-
-      //  stage('Clean Old Build Files') {
-       //     steps {
-       //         echo "[INFO] Cleaning up old build files from previous deployments."
-       //         sh "sudo rm -rf /home/ubuntu/pinga/trunk/dist/*"
-       //         echo "[INFO] Old build files removed."
-       //     }
-//        }
-
-        stage('Copy Environment-Specific Configuration File') {
-            steps {
-                echo "[INFO] Copying environment-specific configuration file."
-                script {
-                    def configFilePath = "/home/ubuntu/data.service.ts.${params.ENVIRONMENT}"
-                    sh "cp ${configFilePath} /home/ubuntu/pinga/trunk/src/app/service/data.service.ts"
-                }
-                echo "[INFO] Configuration file copied successfully."
-            }
-        }
-
-        stage('Install Dependencies & Build') {
-    steps {
-        dir('/home/ubuntu/pinga/trunk') {
-            echo "[INFO] Installing dependencies and preparing build."
-            sh '''
-                # Remove the old dist directory to avoid residual files
-                rm -rf dist
-                rm -rf node_modules package-lock.json
-
-                # Install dependencies with legacy peer deps
-                npm install --legacy-peer-deps
-
-                # Attempt to fix any vulnerabilities
-                npm audit fix || echo "Audit fix failed; ignoring remaining issues."
-                npm audit fix --force || echo "Force audit fix failed."
-
-                # Run the build process
-                npm run build
-
-                echo "[INFO] Build process completed successfully."
-            '''
-        }
-    }
-}
-
-        stage('Compress & Upload Build Artifacts') {
-            steps {
-                dir("${env.BUILD_DIR}/pinga/trunk") {
-                    echo "[INFO] Compressing and uploading build artifacts..."
-                    script {
-                        def DIST_FILE = "dist-${params.ENVIRONMENT}-${env.BUILD_DATE}-new.tar.gz"
-                        def TAR_PATH = "${env.BUILD_DIR}/${DIST_FILE}"
-                        sh "sudo tar -czvf ${TAR_PATH} dist"
-                        
-                        retry(3) {
-                            sh """aws s3 cp ${TAR_PATH} s3://pinga-builds/${env.DIST_FILE}"""
-                        }
-                        echo "[INFO] Build artifact uploaded to S3."
-                    }
-                }
-            }
-        }
 
         stage('Verify Server Availability') {
             steps {

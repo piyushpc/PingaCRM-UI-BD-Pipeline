@@ -37,21 +37,30 @@ pipeline {
         }
 
         stage('Setup AWS Credentials') {
-            steps {
-                script {
-                    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials-id']]) {
-                        sshagent([env.SSH_CREDENTIALS_ID]) {
-                            sh """
-                                ssh -o StrictHostKeyChecking=no ubuntu@${env.BUILD_SERVER} << EOF
-                                    export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
-                                    export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
-                                EOF
-                            """
-                        }
-                    }
+    steps {
+        script {
+            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials-id']]) {
+                sshagent(credentials: [env.CREDENTIALS_ID]) {
+                    sh """
+                    ssh -o StrictHostKeyChecking=no ubuntu@ec2-3-110-193-16.ap-south-1.compute.amazonaws.com << 'EOF'
+                        echo "[INFO] Connected to the build server."
+                        
+                        # Export AWS credentials
+                        export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+                        export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+                        
+                        # Validate credentials
+                        aws sts get-caller-identity || { echo "[ERROR] AWS credentials validation failed."; exit 1; }
+                        
+                        echo "[INFO] AWS credentials configured successfully."
+                    EOF
+                    """
                 }
             }
         }
+    }
+}
+
 
         stage('Initialize') {
     steps {

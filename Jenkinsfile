@@ -47,15 +47,15 @@ pipeline {
                     sshagent(credentials: [env.CREDENTIALS_ID]) {
                         echo "[DEBUG] Starting SSH connection..."
                         sh """
-                        ssh -o StrictHostKeyChecking=no ubuntu@ec2-3-110-193-16.ap-south-1.compute.amazonaws.com << 'EOF'
+                        ssh -vvv -o StrictHostKeyChecking=no ubuntu@ec2-3-110-193-16.ap-south-1.compute.amazonaws.com << 'EOF'
                             echo "[INFO] Connected to build server."
                             export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
                             export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
                             aws sts get-caller-identity
                             echo "[INFO] AWS credentials validated successfully."
-                            exit 0
                         EOF
                         """
+                        echo "[DEBUG] SSH connection and commands executed successfully."
                     }
                 }
             } catch (Exception e) {
@@ -65,6 +65,7 @@ pipeline {
         }
     }
 }
+
 
 
 

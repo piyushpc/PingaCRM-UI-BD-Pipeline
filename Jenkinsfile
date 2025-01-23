@@ -39,12 +39,13 @@ pipeline {
         stage('Setup AWS Credentials') {
     steps {
         script {
+            echo "[DEBUG] Entering Setup AWS Credentials stage..."
             try {
-                echo "[DEBUG] Entering Setup AWS Credentials stage..."
                 withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials-id']]) {
-                    echo "[DEBUG] Retrieved AWS credentials."
+                    echo "[DEBUG] Retrieved AWS credentials: AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID.substring(0, 4)}****"
+                    
                     sshagent(credentials: [env.CREDENTIALS_ID]) {
-                        echo "[DEBUG] Starting SSH connection."
+                        echo "[DEBUG] Starting SSH connection..."
                         sh """
                         ssh -o StrictHostKeyChecking=no ubuntu@ec2-3-110-193-16.ap-south-1.compute.amazonaws.com << 'EOF'
                             echo "[INFO] Connected to build server."
@@ -64,6 +65,7 @@ pipeline {
         }
     }
 }
+
 
 
         stage('Initialize') {

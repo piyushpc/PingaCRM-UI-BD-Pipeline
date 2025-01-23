@@ -37,39 +37,21 @@ pipeline {
         }
 
         stage('Setup AWS Credentials') {
-    steps {
-        script {
-            echo "[DEBUG] Entering Setup AWS Credentials stage..."
-            try {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials-id']]) {
-                    echo "[DEBUG] Retrieved AWS credentials: AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID.substring(0, 4)}****"
-                    
-                    // SSH Agent Setup
-                    sshagent(credentials: [env.CREDENTIALS_ID]) {
-                        echo "[DEBUG] Starting SSH connection..."
-                        sh """
-                        ssh -vvv -o StrictHostKeyChecking=no ubuntu@ec2-3-110-193-16.ap-south-1.compute.amazonaws.com << 'EOF'
-                            echo "[INFO] Connected to build server."
-                            export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-                            export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-                            aws sts get-caller-identity
-                            echo "[INFO] AWS credentials validated successfully."
-                            exit 0
-                        EOF
-                        """
-                        echo "[DEBUG] SSH connection and commands executed successfully."
+            steps {
+                script {
+                    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials-id']]) {
+                        sshagent([env.SSH_CREDENTIALS_ID]) {
+                            sh """
+                                ssh -o StrictHostKeyChecking=no ubuntu@${env.BUILD_SERVER} << EOF
+                                    export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+                                    export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+                                EOF
+                            """
+                        }
                     }
                 }
-            } catch (Exception e) {
-                echo "[ERROR] Setup AWS Credentials stage failed: ${e.message}"
-                error "Setup AWS Credentials failed."
             }
         }
-    }
-}
-
-
-
 
 
         stage('Initialize') {

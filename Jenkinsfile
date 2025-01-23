@@ -44,6 +44,7 @@ pipeline {
                 withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials-id']]) {
                     echo "[DEBUG] Retrieved AWS credentials: AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID.substring(0, 4)}****"
                     
+                    // SSH Agent Setup
                     sshagent(credentials: [env.CREDENTIALS_ID]) {
                         echo "[DEBUG] Starting SSH connection..."
                         sh """
@@ -53,6 +54,7 @@ pipeline {
                             export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
                             aws sts get-caller-identity
                             echo "[INFO] AWS credentials validated successfully."
+                            exit 0
                         EOF
                         """
                         echo "[DEBUG] SSH connection and commands executed successfully."
@@ -65,6 +67,7 @@ pipeline {
         }
     }
 }
+
 
 
 

@@ -10,7 +10,7 @@ pipeline {
         S3_BUCKET = 'pinga-builds'
         SSH_KEY_PATH = '/var/lib/jenkins/.ssh/vkey.pem'
         SLACK_CHANNEL = "slack-bot-token"
-        BUILD_SERVER = "ec2-3-110-193-16.ap-south-1.compute.amazonaws.com"
+        BUILD_SERVER = "ec2-13-127-107-129.ap-south-1.compute.amazonaws.com"
         SSH_CREDENTIALS_ID = "build-server-ssh-credentials-id"
     }
 

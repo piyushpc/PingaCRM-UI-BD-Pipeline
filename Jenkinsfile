@@ -155,7 +155,7 @@ pipeline {
 
         // Remaining stages (Compress, Upload, Deployment, Cleanup, Notification)
         stage('Compress & Upload Build Artifacts') {
-            ...
+            
         }
 
         // Repeat similar agent approach for deployment if needed.
@@ -163,7 +163,7 @@ pipeline {
 
     post {
         failure {
-            ...
+            
         }
     }
 }

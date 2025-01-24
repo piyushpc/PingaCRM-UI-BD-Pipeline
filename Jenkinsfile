@@ -1,13 +1,169 @@
+
 pipeline {
-    agent { label 'build-server' }
+    agent any
+
+    environment {
+        AWS_DEFAULT_REGION = 'ap-south-1'
+        BUILD_DATE = sh(script: 'date +%d%b%Y', returnStdout: true).trim()
+        BUILD_DIR = "/home/ubuntu"
+        DIST_FILE = "dist-${params.ENVIRONMENT}-${new Date().format('ddMMMyyyy')}-new.tar.gz"
+        S3_BUCKET = 'pinga-builds'
+        SSH_KEY_PATH = '/var/lib/jenkins/.ssh/vkey.pem'
+        SLACK_CHANNEL = "slack-bot-token"
+    }
+
+    parameters {
+        booleanParam(name: 'UPDATE_SVN', defaultValue: false, description: 'Set to true to fetch the latest code from SVN')
+        choice(
+            name: 'ENVIRONMENT',
+            choices: ['dev', 'uat', 'prod'],
+            description: 'Select the deployment environment: dev, uat, prod'
+        )
+    }
+
     stages {
-        stage('Test Build Server') {
+        stage('Debug Environment Variables') {
             steps {
-                sh '''
-                    echo "Agent is successfully connected!"
-                    echo "Running on $(hostname)"
-                '''
+                script {
+                    sh 'env | sort'
+                }
             }
+        }
+
+        stage('Setup AWS Credentials') {
+            steps {
+                script {
+                    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials-id']]) {
+                        env.AWS_ACCESS_KEY_ID = sh(script: 'echo $AWS_ACCESS_KEY_ID', returnStdout: true).trim()
+                        env.AWS_SECRET_ACCESS_KEY = sh(script: 'echo $AWS_SECRET_ACCESS_KEY', returnStdout: true).trim()
+                    }
+                }
+            }
+        }
+
+        stage('Initialize') {
+            steps {
+                script {
+                    echo "[INFO] Initializing pipeline with parameters: ENVIRONMENT=${params.ENVIRONMENT}, BUILD_DATE=${env.BUILD_DATE}"
+                    switch (params.ENVIRONMENT) {
+                        case 'dev':
+                            env.DIST_FILE = "dist-dev-${env.BUILD_DATE}-new.tar.gz"
+                            env.FRONTEND_SERVER = "ec2-3-109-179-70.ap-south-1.compute.amazonaws.com"
+                            env.CREDENTIALS_ID = "dev-frontend-ssh-key"
+                            break
+                        case 'uat':
+                            env.DIST_FILE = "dist-uat-${env.BUILD_DATE}-new.tar.gz"
+                            env.FRONTEND_SERVER = "ec2-65-1-130-96.ap-south-1.compute.amazonaws.com"
+                            env.CREDENTIALS_ID = "uat-frontend-ssh-key"
+                            break
+                        case 'prod':
+                            env.DIST_FILE = "dist-prod-${env.BUILD_DATE}-new.tar.gz"
+                            env.FRONTEND_SERVER = "prod.pingacrm.com"
+                            env.CREDENTIALS_ID = "prod-frontend-ssh-key"
+                            break
+                        default:
+                            error "[ERROR] Invalid environment: ${params.ENVIRONMENT}. Use 'dev', 'uat', or 'prod'."
+                    }
+                    echo "[DEBUG] ENVIRONMENT=${params.ENVIRONMENT}, DIST_FILE=${env.DIST_FILE}, FRONTEND_SERVER=${env.FRONTEND_SERVER}, CREDENTIALS_ID=${env.CREDENTIALS_ID}"
+                }
+            }
+        }
+
+        stage('Build on Dedicated Build Server') {
+            agent { label 'build-server' } // Ensure this matches your agent's label
+            stages {
+                stage('Backup Current Code') {
+                    steps {
+                        script {
+                            def backupPath = "/home/ubuntu/pinga-${env.BUILD_DATE}-backup"
+                            echo "[INFO] Backing up current deployment at /home/ubuntu/pinga to ${backupPath}"
+                            sh """
+                                if [ ! -d /home/ubuntu/pinga ]; then
+                                    echo "[ERROR] Source directory /home/ubuntu/pinga does not exist!"
+                                    exit 1
+                                fi
+                                sudo cp -R /home/ubuntu/pinga ${backupPath}
+                                if [ ! -d ${backupPath} ]; then
+                                    echo "[ERROR] Backup failed!"
+                                    exit 1
+                                fi
+                            """
+                            echo "[INFO] Backup completed successfully at ${backupPath}."
+                        }
+                    }
+                }
+
+                stage('Handle SVN Checkout/Update') {
+                    steps {
+                        script {
+                            if (params.UPDATE_SVN) {
+                                echo "[INFO] UPDATE_SVN is enabled. Performing fresh SVN checkout..."
+                                
+                                def svnUrl = "https://extsvn.pingacrm.com/svn/pingacrm-frontend-new/trunk"
+                                def svnDir = "/home/ubuntu/pinga/trunk"
+
+                                withCredentials([usernamePassword(credentialsId: 'svn-credentials-id', 
+                                                                  usernameVariable: 'SVN_USER', 
+                                                                  passwordVariable: 'SVN_PASS')]) {
+                                    sh """
+                                        echo '[INFO] Removing existing SVN directory...'
+                                        sudo rm -rf ${svnDir}
+                                        
+                                        echo '[INFO] Checking out repository from SVN...'
+                                        svn checkout --username $SVN_USER --password $SVN_PASS ${svnUrl} ${svnDir}
+                                    """
+                                }
+                                echo "[INFO] Fresh SVN checkout completed successfully."
+                            } else {
+                                echo "[INFO] UPDATE_SVN is disabled. Skipping SVN operations."
+                            }
+                        }
+                    }
+                }
+
+                stage('Copy Environment-Specific Configuration File') {
+                    steps {
+                        echo "[INFO] Copying environment-specific configuration file."
+                        script {
+                            def configFilePath = "/home/ubuntu/data.service.ts.${params.ENVIRONMENT}"
+                            sh "cp ${configFilePath} /home/ubuntu/pinga/trunk/src/app/service/data.service.ts"
+                        }
+                        echo "[INFO] Configuration file copied successfully."
+                    }
+                }
+
+                stage('Install Dependencies & Build') {
+                    steps {
+                        dir('/home/ubuntu/pinga/trunk') {
+                            echo "[INFO] Installing dependencies and preparing build."
+                            sh '''
+                                rm -rf dist
+                                rm -rf node_modules package-lock.json
+
+                                npm install --legacy-peer-deps
+                                npm audit fix || echo "Audit fix failed; ignoring remaining issues."
+                                npm audit fix --force || echo "Force audit fix failed."
+
+                                npm run build
+                                echo "[INFO] Build process completed successfully."
+                            '''
+                        }
+                    }
+                }
+            }
+        }
+
+        // Remaining stages (Compress, Upload, Deployment, Cleanup, Notification)
+        stage('Compress & Upload Build Artifacts') {
+            ...
+        }
+
+        // Repeat similar agent approach for deployment if needed.
+    }
+
+    post {
+        failure {
+            ...
         }
     }
 }

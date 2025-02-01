@@ -158,8 +158,6 @@ pipeline {
                         }
                     }
                 }
-            }
-        }
 
         // Remaining stages (Compress, Upload, Deployment, Cleanup, Notification)
         stage('Compress & Upload Build Artifacts') {
@@ -182,3 +180,4 @@ pipeline {
 
         // Repeat similar agent approach for deployment if needed.
     }
+        }   

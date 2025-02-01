@@ -126,7 +126,7 @@ pipeline {
                         echo "[INFO] Copying environment-specific configuration file."
                         script {
                             def configFilePath = "/home/ubuntu/data.service.ts.${params.ENVIRONMENT}"
-                            sh "cp ${configFilePath} /home/ubuntu/pinga/trunk/src/app/service/data.service.ts"
+                            sh "sudo cp ${configFilePath} /home/ubuntu/pinga/trunk/src/app/service/data.service.ts"
                         }
                         echo "[INFO] Configuration file copied successfully."
                     }

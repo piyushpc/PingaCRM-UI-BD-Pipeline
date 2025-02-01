@@ -151,6 +151,12 @@ pipeline {
                                 
                                 echo "[INFO] Running force audit fix..."
                                 npm audit fix --force || echo "Force audit fix failed."
+
+                                export NVM_DIR="$HOME/.nvm"
+                                [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+                                nvm install 18
+                                nvm use 18
+
                                 
                                 echo "[INFO] Running build..."
                                 npm run build

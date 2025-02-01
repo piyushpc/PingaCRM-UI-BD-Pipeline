@@ -158,6 +158,7 @@ pipeline {
                         }
                     }
                 }
+            }
 
         // Remaining stages (Compress, Upload, Deployment, Cleanup, Notification)
         stage('Compress & Upload Build Artifacts') {

@@ -155,7 +155,21 @@ pipeline {
 
         // Remaining stages (Compress, Upload, Deployment, Cleanup, Notification)
         stage('Compress & Upload Build Artifacts') {
-            
+            steps {
+                dir("${env.BUILD_DIR}/pinga/trunk") {
+                    echo "[INFO] Compressing and uploading build artifacts..."
+                    script {
+                        def DIST_FILE = "dist-${params.ENVIRONMENT}-${env.BUILD_DATE}-new.tar.gz"
+                        def TAR_PATH = "${env.BUILD_DIR}/${DIST_FILE}"
+                        sh "sudo tar -czvf ${TAR_PATH} dist"
+                        
+                        retry(3) {
+                            sh """aws s3 cp ${TAR_PATH} s3://pinga-builds/${env.DIST_FILE}"""
+                        }
+                        echo "[INFO] Build artifact uploaded to S3."
+                    }
+                }
+            }
         }
 
         // Repeat similar agent approach for deployment if needed.

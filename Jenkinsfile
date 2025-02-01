@@ -139,6 +139,9 @@ pipeline {
                                 set -x  # Enable debugging
                                 rm -rf dist
                                 rm -rf node_modules package-lock.json
+
+                                echo "[INFO] Adding Node.js to PATH..."
+                                export PATH=$PATH:/usr/local/bin
                                 
                                 echo "[INFO] Installing dependencies..."
                                 npm install --legacy-peer-deps

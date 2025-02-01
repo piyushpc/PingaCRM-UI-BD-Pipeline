@@ -135,7 +135,7 @@ pipeline {
                     steps {
                         dir('/home/ubuntu/pinga/trunk') {
                             echo "[INFO] Installing dependencies and preparing build."
-                           // sh '''
+                             script {
                                 set -x  # Enable debugging
                                 rm -rf dist
                                 rm -rf node_modules package-lock.json
@@ -153,10 +153,10 @@ pipeline {
                                 npm run build
                                  
                                 echo "[INFO] Build process completed successfully."
-                          //  '''
                         }
                     }
                 }
+            }
 
                 // Remaining stages (Compress, Upload, Deployment, Cleanup, Notification)
                 stage('Compress & Upload Build Artifacts') {

@@ -1,4 +1,3 @@
-
 pipeline {
     agent any
 
@@ -98,7 +97,7 @@ pipeline {
                         script {
                             if (params.UPDATE_SVN) {
                                 echo "[INFO] UPDATE_SVN is enabled. Performing fresh SVN checkout..."
-                                
+                                 
                                 def svnUrl = "https://extsvn.pingacrm.com/svn/pingacrm-frontend-new/trunk"
                                 def svnDir = "/home/ubuntu/pinga/trunk"
 
@@ -140,45 +139,44 @@ pipeline {
                                 set -x  # Enable debugging
                                 rm -rf dist
                                 rm -rf node_modules package-lock.json
-                                
+                                 
                                 echo "[INFO] Installing dependencies..."
                                 npm install --legacy-peer-deps
-                                
+                                 
                                 echo "[INFO] Running npm audit fix..."
                                 npm audit fix || echo "Audit fix failed; ignoring remaining issues."
-                                
+                                 
                                 echo "[INFO] Running force audit fix..."
                                 npm audit fix --force || echo "Force audit fix failed."
-                                
+                                 
                                 echo "[INFO] Running build..."
                                 npm run build
-                                
+                                 
                                 echo "[INFO] Build process completed successfully."
                             '''
                         }
                     }
                 }
 
-        // Remaining stages (Compress, Upload, Deployment, Cleanup, Notification)
-        stage('Compress & Upload Build Artifacts') {
-            steps {
-                dir("${env.BUILD_DIR}/pinga/trunk") {
-                    echo "[INFO] Compressing and uploading build artifacts..."
-                    script {
-                        def DIST_FILE = "dist-${params.ENVIRONMENT}-${env.BUILD_DATE}-new.tar.gz"
-                        def TAR_PATH = "${env.BUILD_DIR}/${DIST_FILE}"
-                        sh "sudo tar -czvf ${TAR_PATH} dist"
-                        
-                        retry(3) {
-                            sh """aws s3 cp ${TAR_PATH} s3://pinga-builds/${env.DIST_FILE}"""
+                // Remaining stages (Compress, Upload, Deployment, Cleanup, Notification)
+                stage('Compress & Upload Build Artifacts') {
+                    steps {
+                        dir("${env.BUILD_DIR}/pinga/trunk") {
+                            echo "[INFO] Compressing and uploading build artifacts..."
+                            script {
+                                def DIST_FILE = "dist-${params.ENVIRONMENT}-${env.BUILD_DATE}-new.tar.gz"
+                                def TAR_PATH = "${env.BUILD_DIR}/${DIST_FILE}"
+                                sh "sudo tar -czvf ${TAR_PATH} dist"
+                                
+                                retry(3) {
+                                    sh """aws s3 cp ${TAR_PATH} s3://pinga-builds/${env.DIST_FILE}"""
+                                }
+                                echo "[INFO] Build artifact uploaded to S3."
+                            }
                         }
-                        echo "[INFO] Build artifact uploaded to S3."
                     }
                 }
             }
         }
-
-        // Repeat similar agent approach for deployment if needed.
     }
-        }
-    }
+}

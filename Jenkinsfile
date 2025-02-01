@@ -136,7 +136,7 @@ pipeline {
                         dir('/home/ubuntu/pinga/trunk') {
                             echo "[INFO] Installing dependencies and preparing build."
                              script {
-                                set -x  # Enable debugging
+                               // set -x  # Enable debugging
                                 rm -rf dist
                                 rm -rf node_modules package-lock.json
                                  

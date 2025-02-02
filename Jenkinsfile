@@ -139,34 +139,33 @@ pipeline {
                                 set -x  # Enable debugging
                                 rm -rf dist
                                 rm -rf node_modules package-lock.json
-                
+
                                 echo "[INFO] Cleaning npm cache..."
                                 npm cache clean --force
-                
+
                                 echo "[INFO] Installing correct Angular CLI version locally..."
-                                npm install @angular/cli@16.2.16 --save-dev
-                
+                                npm install @angular/cli@16.2.16 --save-dev --legacy-peer-deps
+
                                 echo "[INFO] Installing correct Angular Devkit version..."
-                                npm install @angular-devkit/build-angular@16 --save-dev
-                
+                                npm install @angular-devkit/build-angular@16 --save-dev --legacy-peer-deps
+
                                 echo "[INFO] Installing all dependencies..."
                                 npm install --legacy-peer-deps
-                                
+
                                 echo "[INFO] Running npm audit fix..."
                                 npm audit fix || echo "Audit fix failed; ignoring remaining issues."
-                                
+
                                 echo "[INFO] Running force audit fix..."
                                 npm audit fix --force || echo "Force audit fix failed."
-                                
+
                                 echo "[INFO] Running build..."
                                 npm run build
-                                
+
                                 echo "[INFO] Build process completed successfully."
                             '''
                         }
                     }
                 }
-
 
                 // Remaining stages (Compress, Upload, Deployment, Cleanup, Notification)
                 stage('Compress & Upload Build Artifacts') {

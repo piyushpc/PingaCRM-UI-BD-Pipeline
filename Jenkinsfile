@@ -69,7 +69,7 @@ pipeline {
         }
 
         stage('Build on Dedicated Build Server') {
-            agent { label 'build-server' } // Ensure this matches your agent's label
+            agent { label 'build-server' }
             stages {
                 stage('Backup Current Code') {
                     steps {
@@ -136,16 +136,12 @@ pipeline {
                         dir('/home/ubuntu/pinga/trunk') {
                             echo "[INFO] Installing dependencies and preparing build."
                             sh '''
-
                                 sudo chown -R jenkins:jenkins /home/ubuntu/pinga/trunk
                                 sudo chmod -R 755 /home/ubuntu/pinga/trunk
-                                
-                                set -x  # Enable debugging
+                                 
+                                set -x
                                 rm -rf dist
                                 rm -rf node_modules package-lock.json
-
-                                echo "[INFO] Adding Node.js to PATH..."
-                                export PATH=$PATH:/usr/local/bin
                                 
                                 echo "[INFO] Installing dependencies..."
                                 npm install --legacy-peer-deps
@@ -155,20 +151,16 @@ pipeline {
                                 
                                 echo "[INFO] Running force audit fix..."
                                 npm audit fix --force || echo "Force audit fix failed."
-
+                                
                                 sudo npm install @angular-devkit/build-angular@16.2.16 --save-dev --legacy-peer-deps
-
                                 
                                 echo "[INFO] Running build..."
                                 npm run build
-                                
-                                echo "[INFO] Build process completed successfully."
                             '''
                         }
                     }
                 }
 
-                // Remaining stages (Compress, Upload, Deployment, Cleanup, Notification)
                 stage('Compress & Upload Build Artifacts') {
                     steps {
                         dir("${env.BUILD_DIR}/pinga/trunk") {
@@ -189,8 +181,7 @@ pipeline {
             }
         }
 
-
-            stage('Verify Server Availability') {
+        stage('Verify Server Availability') {
             steps {
                 sshagent(credentials: [env.CREDENTIALS_ID]) {
                     sh """
@@ -199,7 +190,7 @@ pipeline {
                 }
             }
         }
-            stages {
+        
             stage('Stop Apache') {
             steps {
                 sshagent(credentials: [env.CREDENTIALS_ID]) {
@@ -303,32 +294,7 @@ EOF
         }
     }
 
-    post {
-        success {
-            echo "[INFO] Deployment completed successfully."
-        }
-        failure {
-            echo "[ERROR] Deployment failed. Please check the logs for details."
-        }
-    }
-}
-
-       
-
-        stage('Finalize') {
-            steps {
-                script {
-                    echo "[INFO] Finalizing deployment steps."
-                    if (currentBuild.result == 'FAILURE') {
-                        echo "[ERROR] Deployment process encountered errors."
-                    } else {
-                        echo "[INFO] Deployment process completed successfully."
-                    }
-                }
-            }
-        }
-    }
-    
+     }
 
     post {
         success {
@@ -350,4 +316,4 @@ EOF
             }
         }
     }
-
+}

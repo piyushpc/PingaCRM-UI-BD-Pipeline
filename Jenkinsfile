@@ -294,8 +294,6 @@ EOF
         }
     }
 
-     }
-
     post {
         success {
             echo "Deployment completed successfully."
@@ -316,4 +314,5 @@ EOF
             }
         }
     }
+}
 }

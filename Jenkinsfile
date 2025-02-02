@@ -144,7 +144,7 @@ pipeline {
                                 npm cache clean --force
                 
                                 echo "[INFO] Installing correct Angular CLI version..."
-                                npm install -g @angular/cli@16.2.16
+                                npm install -g @angular/cli@16.2.16 --force
                 
                                 echo "[INFO] Installing correct Angular Devkit version..."
                                 npm install @angular-devkit/build-angular@16 --save-dev --force

@@ -147,7 +147,7 @@ pipeline {
                                 npm install -g @angular/cli@16.2.16
                 
                                 echo "[INFO] Installing correct Angular Devkit version..."
-                                npm install @angular-devkit/build-angular@16 --save-dev
+                                npm install @angular-devkit/build-angular@16 --save-dev --force
                 
                                 echo "[INFO] Installing all dependencies..."
                                 npm install --legacy-peer-deps

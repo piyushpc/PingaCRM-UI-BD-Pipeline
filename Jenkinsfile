@@ -188,7 +188,6 @@ pipeline {
                 }
             }
         }
-    }
 
 
             stage('Verify Server Availability') {
@@ -350,4 +349,5 @@ EOF
             }
         }
     }
+}
 }

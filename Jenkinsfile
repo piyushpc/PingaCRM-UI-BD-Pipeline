@@ -139,11 +139,17 @@ pipeline {
                                 set -x  # Enable debugging
                                 rm -rf dist
                                 rm -rf node_modules package-lock.json
-
-                                echo "[INFO] Adding Node.js to PATH..."
-                                export PATH=$PATH:/usr/local/bin
-                                
-                                echo "[INFO] Installing dependencies..."
+                
+                                echo "[INFO] Cleaning npm cache..."
+                                npm cache clean --force
+                
+                                echo "[INFO] Installing correct Angular CLI version..."
+                                npm install -g @angular/cli@16.2.16
+                
+                                echo "[INFO] Installing correct Angular Devkit version..."
+                                npm install @angular-devkit/build-angular@16 --save-dev
+                
+                                echo "[INFO] Installing all dependencies..."
                                 npm install --legacy-peer-deps
                                 
                                 echo "[INFO] Running npm audit fix..."

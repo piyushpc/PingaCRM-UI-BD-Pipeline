@@ -151,6 +151,9 @@ pipeline {
                                 
                                 echo "[INFO] Running force audit fix..."
                                 npm audit fix --force || echo "Force audit fix failed."
+
+                                sudo npm install @angular-devkit/build-angular@16.2.16 --save-dev --legacy-peer-deps
+
                                 
                                 echo "[INFO] Running build..."
                                 npm run build

@@ -136,6 +136,10 @@ pipeline {
                         dir('/home/ubuntu/pinga/trunk') {
                             echo "[INFO] Installing dependencies and preparing build."
                             sh '''
+
+                                sudo chown -R jenkins:jenkins /home/ubuntu/pinga/trunk
+                                sudo chmod -R 755 /home/ubuntu/pinga/trunk
+                                
                                 set -x  # Enable debugging
                                 rm -rf dist
                                 rm -rf node_modules package-lock.json

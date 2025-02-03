@@ -7,7 +7,7 @@ pipeline {
         BUILD_DIR = "/home/ubuntu"
         DIST_FILE = "dist-${params.ENVIRONMENT}-${new Date().format('ddMMMyyyy')}-new.tar.gz"
         S3_BUCKET = 'pinga-builds'
-        SSH_KEY_PATH = '/home/ubuntu/vkey.pem'
+        SSH_KEY_PATH = '/var/lib/jenkins/vkey.pem'
         SLACK_CHANNEL = "slack-bot-token"
         // sudo npm install @angular-devkit/build-angular@16.0.3 --save-dev --legacy-peer-deps
     }

@@ -221,7 +221,7 @@ pipeline {
                     ssh -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} <<EOF
                         echo "[INFO] Renaming old dist directory..."
                         if [ -d /var/www/html/pinga ]; then
-                            sudo mv /var/www/html/pinga "/var/www/html/pinga-backup-\$(date +%Y%m%d%H%M%S)" || { echo "[ERROR] Backup failed"; exit 1; }
+                            sudo mv /var/www/html/pinga "/home/ubuntu/pinga-backup-\$(date +%Y%m%d%H%M%S)" || { echo "[ERROR] Backup failed"; exit 1; }
                         fi
 EOF
                     """

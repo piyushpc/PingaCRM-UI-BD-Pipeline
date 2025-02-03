@@ -9,6 +9,7 @@ pipeline {
         S3_BUCKET = 'pinga-builds'
         SSH_KEY_PATH = '/home/ubuntu/vkey.pem'
         SLACK_CHANNEL = "slack-bot-token"
+        // sudo npm install @angular-devkit/build-angular@16.0.3 --save-dev --legacy-peer-deps
     }
 
     parameters {
@@ -143,15 +144,13 @@ pipeline {
                                 rm -rf node_modules package-lock.json
                                 
                                 echo "[INFO] Installing dependencies..."
-                                npm install --legacy-peer-deps
+                                sudo npm install --legacy-peer-deps
                                 
                                 echo "[INFO] Running npm audit fix..."
                                 npm audit fix || echo "Audit fix failed; ignoring remaining issues."
                                 
                                 echo "[INFO] Running force audit fix..."
                                 npm audit fix --force || echo "Force audit fix failed."
-                                
-                                sudo npm install @angular-devkit/build-angular@16.0.3 --save-dev --legacy-peer-deps
                                 
                                 echo "[INFO] Running build..."
                                 npm run build

@@ -203,17 +203,16 @@ pipeline {
         }
 
         stage('Download Build from S3') {
-        steps {
-            sshagent(credentials: [env.CREDENTIALS_ID]) {
-                sh """
-                ssh -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} <<EOF
-                    echo "[INFO] Downloading the new build from S3..."
-                    aws s3 cp s3://${S3_BUCKET}/${env.DIST_FILE} . || { echo "[ERROR] S3 download failed"; exit 1; }
-    EOF
-                """
+            steps {
+                sshagent(credentials: [env.CREDENTIALS_ID]) {
+                    sh """
+                    ssh -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} \
+                        'echo "[INFO] Downloading the new build from S3..." && \
+                        aws s3 cp s3://${S3_BUCKET}/${env.DIST_FILE} . || { echo "[ERROR] S3 download failed"; exit 1; }'
+                    """
+                }
             }
         }
-    }
 
         stage('Backup Old Build') {
             steps {

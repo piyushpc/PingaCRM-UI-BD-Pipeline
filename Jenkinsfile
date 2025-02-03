@@ -281,6 +281,7 @@ pipeline {
                 }
             }
         }
+    }
         
         post {
             success {

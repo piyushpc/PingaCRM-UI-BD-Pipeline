@@ -291,23 +291,31 @@ EOF
     }
 
     post {
-        success {
-            echo "Deployment completed successfully."
-        }
-        failure {
-            echo "[ERROR] Pipeline failed. Initiating rollback."
-            sshagent(credentials: [CREDENTIALS_ID]) {
-                sh '''
-                    ssh -i /home/ubuntu/vkey.pem ubuntu@${env.FRONTEND_SERVER} << EOF
-                    sudo service apache2 stop || exit 1
-                    if [ -d /var/www/html/pinga-backup-${env.BUILD_DATE} ]; then
-                        sudo rm -rf /var/www/html/pinga || exit 1
-                        sudo mv /var/www/html/pinga-backup-${env.BUILD_DATE} /var/www/html/pinga || exit 1
-                    fi
-                    sudo service apache2 start || exit 1
-                    EOF
-                '''
-            }
+    success {
+        echo "Deployment completed successfully."
+        slackSend(
+            channel: '#build-notifications', // Replace with your Slack channel
+            message: "✅ Deployment SUCCESSFUL: ${env.JOB_NAME} - Build #${env.BUILD_NUMBER}\nEnvironment: ${params.ENVIRONMENT}\nBuild Date: ${env.BUILD_DATE}\nMore info: ${env.BUILD_URL}"
+        )
+    }
+    failure {
+        echo "[ERROR] Pipeline failed. Initiating rollback."
+        slackSend(
+            channel: '#build-notifications', // Replace with your Slack channel
+            message: "❌ Deployment FAILED: ${env.JOB_NAME} - Build #${env.BUILD_NUMBER}\nEnvironment: ${params.ENVIRONMENT}\nBuild Date: ${env.BUILD_DATE}\nMore info: ${env.BUILD_URL}"
+        )
+        sshagent(credentials: [CREDENTIALS_ID]) {
+            sh '''
+                ssh -i /home/ubuntu/vkey.pem ubuntu@${env.FRONTEND_SERVER} << EOF
+                sudo service apache2 stop || exit 1
+                if [ -d /var/www/html/pinga-backup-${env.BUILD_DATE} ]; then
+                    sudo rm -rf /var/www/html/pinga || exit 1
+                    sudo mv /var/www/html/pinga-backup-${env.BUILD_DATE} /var/www/html/pinga || exit 1
+                fi
+                sudo service apache2 start || exit 1
+                EOF
+            '''
         }
     }
+}
 }

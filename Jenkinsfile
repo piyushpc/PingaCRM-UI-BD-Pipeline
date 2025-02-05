@@ -8,7 +8,7 @@ pipeline {
         DIST_FILE = "dist-${params.ENVIRONMENT}-${new Date().format('ddMMMyyyy')}-new.tar.gz"
         S3_BUCKET = 'pinga-builds'
         SSH_KEY_PATH = '/var/lib/jenkins/vkey.pem'
-        SLACK_CHANNEL = "slack-bot-token"
+        SLACK_CHANNEL = "slack-webhook"
         // sudo npm install @angular-devkit/build-angular@16.0.3 --save-dev --legacy-peer-deps
     }
 
@@ -294,14 +294,14 @@ EOF
     success {
         echo "Deployment completed successfully."
         slackSend(
-            channel: '#build-notifications', // Replace with your Slack channel
+            channel: 'dr_devops_piyush_prashant_kamal_accounts_hr', // Replace with your Slack channel
             message: "✅ Deployment SUCCESSFUL: ${env.JOB_NAME} - Build #${env.BUILD_NUMBER}\nEnvironment: ${params.ENVIRONMENT}\nBuild Date: ${env.BUILD_DATE}\nMore info: ${env.BUILD_URL}"
         )
     }
     failure {
         echo "[ERROR] Pipeline failed. Initiating rollback."
         slackSend(
-            channel: '#build-notifications', // Replace with your Slack channel
+            channel: 'dr_devops_piyush_prashant_kamal_accounts_hr', // Replace with your Slack channel
             message: "❌ Deployment FAILED: ${env.JOB_NAME} - Build #${env.BUILD_NUMBER}\nEnvironment: ${params.ENVIRONMENT}\nBuild Date: ${env.BUILD_DATE}\nMore info: ${env.BUILD_URL}"
         )
         sshagent(credentials: [CREDENTIALS_ID]) {

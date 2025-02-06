@@ -183,7 +183,7 @@ pipeline {
             steps {
                 sshagent(credentials: [env.CREDENTIALS_ID]) {
                     sh """
-                    sudo ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "echo [INFO] Server is reachable."
+                    ssh -o StrictHostKeyChecking=no -i /var/lib/jenkins/vkey.pem ubuntu@${env.FRONTEND_SERVER} "echo [INFO] Server is reachable."
                     """
                 }
             }

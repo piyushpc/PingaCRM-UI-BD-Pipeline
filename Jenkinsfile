@@ -53,7 +53,7 @@ pipeline {
                             break
                         case 'uat':
                             env.DIST_FILE = "dist-uat-${env.BUILD_DATE}-new.tar.gz"
-                            env.FRONTEND_SERVER = "ec2-15-207-221-222.ap-south-1.compute.amazonaws.com"
+                            env.FRONTEND_SERVER = "ec2-13.200.109.205.ap-south-1.compute.amazonaws.com"
                             env.CREDENTIALS_ID = "uat-frontend-ssh-key"
                             break
                         case 'prod':

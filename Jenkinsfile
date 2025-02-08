@@ -44,6 +44,21 @@ pipeline {
             steps {
                 script {
                     switch (params.ENVIRONMENT) {
+                        case 'dev':
+                            env.DIST_FILE = "dist-dev-${env.BUILD_DATE}-new.tar.gz"
+                            env.FRONTEND_SERVER = sh(script: """
+                                aws ec2 describe-instances --region ap-south-1 \
+                                --filters "Name=tag:Name,Values=crmdev.pingacrm.com" "Name=instance-state-name,Values=running" \
+                                --query "Reservations[0].Instances[0].PublicIpAddress" --output text
+                            """, returnStdout: true).trim()
+
+                            if (!env.FRONTEND_SERVER) {
+                                error "[ERROR] dev Server IP not found!"
+                            }
+
+                            env.CREDENTIALS_ID = "dev-frontend-ssh-key"
+                            break
+                        
                         case 'uat':
                             env.DIST_FILE = "dist-uat-${env.BUILD_DATE}-new.tar.gz"
                             env.FRONTEND_SERVER = sh(script: """

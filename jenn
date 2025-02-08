@@ -7,8 +7,9 @@ pipeline {
         BUILD_DIR = "/home/ubuntu"
         DIST_FILE = "dist-${params.ENVIRONMENT}-${new Date().format('ddMMMyyyy')}-new.tar.gz"
         S3_BUCKET = 'pinga-builds'
-        SSH_KEY_PATH = '/home/ubuntu/vkey.pem'
-        SLACK_CHANNEL = "slack-bot-token"
+        SSH_KEY_PATH = '/var/lib/jenkins/vkey.pem'
+        SLACK_CHANNEL = "slack-webhook"
+        // sudo npm install @angular-devkit/build-angular@16.0.3 --save-dev --legacy-peer-deps
     }
 
     parameters {
@@ -39,7 +40,6 @@ pipeline {
                 }
             }
         }
-
         stage('Initialize') {
             steps {
                 script {
@@ -52,7 +52,7 @@ pipeline {
                             break
                         case 'uat':
                             env.DIST_FILE = "dist-uat-${env.BUILD_DATE}-new.tar.gz"
-                            env.FRONTEND_SERVER = "ec2-65-1-130-96.ap-south-1.compute.amazonaws.com"
+                            env.FRONTEND_SERVER = "ec2-15-207-221-222.ap-south-1.compute.amazonaws.com"
                             env.CREDENTIALS_ID = "uat-frontend-ssh-key"
                             break
                         case 'prod':
@@ -144,15 +144,13 @@ pipeline {
                                 rm -rf node_modules package-lock.json
                                 
                                 echo "[INFO] Installing dependencies..."
-                                npm install --legacy-peer-deps
+                                sudo npm install --legacy-peer-deps
                                 
                                 echo "[INFO] Running npm audit fix..."
                                 npm audit fix || echo "Audit fix failed; ignoring remaining issues."
                                 
                                 echo "[INFO] Running force audit fix..."
                                 npm audit fix --force || echo "Force audit fix failed."
-                                
-                                sudo npm install @angular-devkit/build-angular@16.2.16 --save-dev --legacy-peer-deps
                                 
                                 echo "[INFO] Running build..."
                                 npm run build
@@ -219,87 +217,105 @@ pipeline {
             steps {
                 sshagent(credentials: [env.CREDENTIALS_ID]) {
                     sh """
-                    ssh -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} \
-                        'echo "[INFO] Renaming old dist directory..." && \
-                        if [ -d /var/www/html/pinga ]; then \
-                            sudo mv /var/www/html/pinga "/var/www/html/pinga-backup-\$(date +%Y%m%d%H%M%S)" || { echo "[ERROR] Backup failed"; exit 1; }; \
-                        fi'
+                    ssh -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} <<EOF
+                        echo "[INFO] Renaming old dist directory..."
+                        if [ -d /var/www/html/pinga ]; then
+                            sudo mv /var/www/html/pinga "/home/ubuntu/pinga-backup-\$(date +%Y%m%d%H%M%S)" || { echo "[ERROR] Backup failed"; exit 1; }
+                        fi
+EOF
                     """
                 }
             }
         }
-        
+
         stage('Prepare Deployment') {
             steps {
                 sshagent(credentials: [env.CREDENTIALS_ID]) {
                     sh """
-                    ssh -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} \
-                        'echo "[INFO] Ensuring deployment directory exists..." && \
-                        mkdir -p /tmp/${params.ENVIRONMENT}-dist || { echo "[ERROR] Failed to create /tmp/${params.ENVIRONMENT}-dist"; exit 1; } && \
-                        echo "[INFO] Unzipping the new build..." && \
-                        tar -xvf ${env.DIST_FILE} -C /tmp/${params.ENVIRONMENT}-dist || { echo "[ERROR] Unzipping failed"; exit 1; }'
+                    ssh -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} <<EOF
+                        echo "[INFO] Ensuring deployment directory exists..."
+                        mkdir -p /tmp/${params.ENVIRONMENT}-dist || { echo "[ERROR] Failed to create /tmp/${params.ENVIRONMENT}-dist"; exit 1; }
+
+                        echo "[INFO] Unzipping the new build..."
+                        tar -xvf ${env.DIST_FILE} -C /tmp/${params.ENVIRONMENT}-dist || { echo "[ERROR] Unzipping failed"; exit 1; }
+EOF
                     """
                 }
             }
         }
-        
+
         stage('Deploy New Build') {
             steps {
                 sshagent(credentials: [env.CREDENTIALS_ID]) {
                     sh """
-                    ssh -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} \
-                        'echo "[INFO] Removing old deployment..." && \
-                        sudo rm -rf /var/www/html/pinga || { echo "[ERROR] Failed to remove old deployment"; exit 1; } && \
-                        echo "[INFO] Deploying new build..." && \
-                        sudo mv /tmp/${params.ENVIRONMENT}-dist/dist/* /var/www/html/pinga || { echo "[ERROR] Deployment failed"; exit 1; } && \
-                        echo "[INFO] Updating permissions..." && \
-                        sudo chown -R www-data:www-data /var/www/html/pinga || { echo "[ERROR] Failed to update permissions"; exit 1; }'
+                    ssh -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} <<EOF
+                        echo "[INFO] Removing old deployment..."
+                        sudo rm -rf /var/www/html/pinga || { echo "[ERROR] Failed to remove old deployment"; exit 1; }
+
+                        echo "[INFO] Deploying new build..."
+                        sudo mv /tmp/${params.ENVIRONMENT}-dist/dist/* /var/www/html/pinga || { echo "[ERROR] Deployment failed"; exit 1; }
+
+                        echo "[INFO] Updating permissions..."
+                        sudo chown -R www-data:www-data /var/www/html/pinga || { echo "[ERROR] Failed to update permissions"; exit 1; }
+EOF
                     """
                 }
             }
         }
-        
+
         stage('Start Apache') {
             steps {
                 sshagent(credentials: [env.CREDENTIALS_ID]) {
                     sh """
-                    ssh -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} \
-                        'echo "[INFO] Starting Apache..." && \
-                        sudo service apache2 start || { echo "[ERROR] Failed to start Apache"; exit 1; }'
+                    ssh -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} <<EOF
+                        echo "[INFO] Starting Apache..."
+                        sudo service apache2 start || { echo "[ERROR] Failed to start Apache"; exit 1; }
+EOF
                     """
                 }
             }
         }
-        
+
         stage('Cleanup') {
             steps {
                 sshagent(credentials: [env.CREDENTIALS_ID]) {
                     sh """
-                    ssh -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} \
-                        'echo "[INFO] Cleaning up temporary directories..." && \
-                        sudo rm -rf /tmp/${params.ENVIRONMENT}-dist || { echo "[ERROR] Failed to clean up temporary directories"; exit 1; }'
-                    """
-                }
-            }
-        }
-        
-        post {
-            success {
-                echo "Deployment completed successfully."
-            }
-            failure {
-                echo "[ERROR] Pipeline failed. Initiating rollback."
-                sshagent(credentials: [CREDENTIALS_ID]) {
-                    sh """
-                        ssh -i /home/ubuntu/vkey.pem ubuntu@${env.FRONTEND_SERVER} \
-                            'sudo service apache2 stop || exit 1; \
-                            if [ -d /var/www/html/pinga-backup-${env.BUILD_DATE} ]; then \
-                                sudo rm -rf /var/www/html/pinga || exit 1; \
-                                sudo mv /var/www/html/pinga-backup-${env.BUILD_DATE} /var/www/html/pinga || exit 1; \
-                            fi; \
-                            sudo service apache2 start || exit 1;'
+                    ssh -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} <<EOF
+                        echo "[INFO] Cleaning up temporary directories..."
+                        sudo rm -rf /tmp/${params.ENVIRONMENT}-dist || { echo "[ERROR] Failed to clean up temporary directories"; exit 1; }
+EOF
                     """
                 }
             }
         }
     }
+
+    post {
+    success {
+        echo "Deployment completed successfully."
+        slackSend(
+            channel: 'dr_devops_piyush_prashant_kamal_accounts_hr', // Replace with your Slack channel
+            message: "✅ Deployment SUCCESSFUL: ${env.JOB_NAME} - Build #${env.BUILD_NUMBER}\nEnvironment: ${params.ENVIRONMENT}\nBuild Date: ${env.BUILD_DATE}\nMore info: ${env.BUILD_URL}"
+        )
+    }
+    failure {
+        echo "[ERROR] Pipeline failed. Initiating rollback."
+        slackSend(
+            channel: 'dr_devops_piyush_prashant_kamal_accounts_hr', // Replace with your Slack channel
+            message: "❌ Deployment FAILED: ${env.JOB_NAME} - Build #${env.BUILD_NUMBER}\nEnvironment: ${params.ENVIRONMENT}\nBuild Date: ${env.BUILD_DATE}\nMore info: ${env.BUILD_URL}"
+        )
+        sshagent(credentials: [CREDENTIALS_ID]) {
+            sh '''
+                ssh -i /home/ubuntu/vkey.pem ubuntu@${env.FRONTEND_SERVER} << EOF
+                sudo service apache2 stop || exit 1
+                if [ -d /var/www/html/pinga-backup-${env.BUILD_DATE} ]; then
+                    sudo rm -rf /var/www/html/pinga || exit 1
+                    sudo mv /var/www/html/pinga-backup-${env.BUILD_DATE} /var/www/html/pinga || exit 1
+                fi
+                sudo service apache2 start || exit 1
+                EOF
+            '''
+        }
+    }
+}
+}

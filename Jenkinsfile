@@ -44,61 +44,27 @@ pipeline {
         stage('Initialize') {
             steps {
                 script {
+                    echo "[INFO] Initializing pipeline with parameters: ENVIRONMENT=${params.ENVIRONMENT}, BUILD_DATE=${env.BUILD_DATE}"
                     switch (params.ENVIRONMENT) {
                         case 'dev':
                             env.DIST_FILE = "dist-dev-${env.BUILD_DATE}-new.tar.gz"
-                            env.FRONTEND_SERVER = sh(script: """
-                                set -e
-                                aws ec2 describe-instances --region ap-south-1 \
-                                --filters "Name=tag:Name,Values=crmdev.pingacrm.com" "Name=instance-state-name,Values=running" \
-                                --query "Reservations[0].Instances[0].PublicIpAddress" --output text 2>&1
-                            """, returnStdout: true).trim()
-        
-                            echo "Dev Server IP: ${env.FRONTEND_SERVER}"
-                            if (!env.FRONTEND_SERVER || env.FRONTEND_SERVER == "None") {
-                                error "[ERROR] Dev Server IP not found or invalid!"
-                            }
-        
+                            env.FRONTEND_SERVER = "ec2-3-109-179-70.ap-south-1.compute.amazonaws.com"
                             env.CREDENTIALS_ID = "dev-frontend-ssh-key"
                             break
-                        
                         case 'uat':
                             env.DIST_FILE = "dist-uat-${env.BUILD_DATE}-new.tar.gz"
-                            env.FRONTEND_SERVER = sh(script: """
-                                set -e
-                                aws ec2 describe-instances --region ap-south-1 \
-                                --filters "Name=tag:Name,Values=crmuat-ui-nov2023" "Name=instance-state-name,Values=running" \
-                                --query "Reservations[0].Instances[0].PublicIpAddress" --output text 2>&1
-                            """, returnStdout: true).trim()
-        
-                            echo "UAT Server IP: ${env.FRONTEND_SERVER}"
-                            if (!env.FRONTEND_SERVER || env.FRONTEND_SERVER == "None") {
-                                error "[ERROR] UAT Server IP not found or invalid!"
-                            }
-        
+                            env.FRONTEND_SERVER = "ec2-15-207-221-222.ap-south-1.compute.amazonaws.com"
                             env.CREDENTIALS_ID = "uat-frontend-ssh-key"
                             break
-        
                         case 'prod':
                             env.DIST_FILE = "dist-prod-${env.BUILD_DATE}-new.tar.gz"
-                            env.FRONTEND_SERVER = sh(script: """
-                                set -e
-                                aws ec2 describe-instances --region ap-south-1 \
-                                --filters "Name=tag:Name,Values=prod-server" "Name=instance-state-name,Values=running" \
-                                --query "Reservations[0].Instances[0].PublicIpAddress" --output text 2>&1
-                            """, returnStdout: true).trim()
-        
-                            echo "Prod Server IP: ${env.FRONTEND_SERVER}"
-                            if (!env.FRONTEND_SERVER || env.FRONTEND_SERVER == "None") {
-                                error "[ERROR] Prod Server IP not found or invalid!"
-                            }
-        
+                            env.FRONTEND_SERVER = "prod.pingacrm.com"
                             env.CREDENTIALS_ID = "prod-frontend-ssh-key"
                             break
-        
                         default:
-                            error "[ERROR] Invalid environment specified!"
+                            error "[ERROR] Invalid environment: ${params.ENVIRONMENT}. Use 'dev', 'uat', or 'prod'."
                     }
+                    echo "[DEBUG] ENVIRONMENT=${params.ENVIRONMENT}, DIST_FILE=${env.DIST_FILE}, FRONTEND_SERVER=${env.FRONTEND_SERVER}, CREDENTIALS_ID=${env.CREDENTIALS_ID}"
                 }
             }
         }

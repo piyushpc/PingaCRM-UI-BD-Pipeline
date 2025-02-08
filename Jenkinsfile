@@ -40,6 +40,7 @@ pipeline {
                 }
             }
         }
+        
         stage('Initialize') {
             steps {
                 script {
@@ -47,54 +48,61 @@ pipeline {
                         case 'dev':
                             env.DIST_FILE = "dist-dev-${env.BUILD_DATE}-new.tar.gz"
                             env.FRONTEND_SERVER = sh(script: """
+                                set -e
                                 aws ec2 describe-instances --region ap-south-1 \
                                 --filters "Name=tag:Name,Values=crmdev.pingacrm.com" "Name=instance-state-name,Values=running" \
-                                --query "Reservations[0].Instances[0].PublicIpAddress" --output text
+                                --query "Reservations[0].Instances[0].PublicIpAddress" --output text 2>&1
                             """, returnStdout: true).trim()
-
-                            if (!env.FRONTEND_SERVER) {
-                                error "[ERROR] dev Server IP not found!"
+        
+                            echo "Dev Server IP: ${env.FRONTEND_SERVER}"
+                            if (!env.FRONTEND_SERVER || env.FRONTEND_SERVER == "None") {
+                                error "[ERROR] Dev Server IP not found or invalid!"
                             }
-
+        
                             env.CREDENTIALS_ID = "dev-frontend-ssh-key"
                             break
                         
                         case 'uat':
                             env.DIST_FILE = "dist-uat-${env.BUILD_DATE}-new.tar.gz"
                             env.FRONTEND_SERVER = sh(script: """
+                                set -e
                                 aws ec2 describe-instances --region ap-south-1 \
                                 --filters "Name=tag:Name,Values=crmuat-ui-nov2023" "Name=instance-state-name,Values=running" \
-                                --query "Reservations[0].Instances[0].PublicIpAddress" --output text
+                                --query "Reservations[0].Instances[0].PublicIpAddress" --output text 2>&1
                             """, returnStdout: true).trim()
-
-                            if (!env.FRONTEND_SERVER) {
-                                error "[ERROR] UAT Server IP not found!"
+        
+                            echo "UAT Server IP: ${env.FRONTEND_SERVER}"
+                            if (!env.FRONTEND_SERVER || env.FRONTEND_SERVER == "None") {
+                                error "[ERROR] UAT Server IP not found or invalid!"
                             }
-
+        
                             env.CREDENTIALS_ID = "uat-frontend-ssh-key"
                             break
-
+        
                         case 'prod':
                             env.DIST_FILE = "dist-prod-${env.BUILD_DATE}-new.tar.gz"
                             env.FRONTEND_SERVER = sh(script: """
+                                set -e
                                 aws ec2 describe-instances --region ap-south-1 \
                                 --filters "Name=tag:Name,Values=prod-server" "Name=instance-state-name,Values=running" \
-                                --query "Reservations[0].Instances[0].PublicIpAddress" --output text
+                                --query "Reservations[0].Instances[0].PublicIpAddress" --output text 2>&1
                             """, returnStdout: true).trim()
-
-                            if (!env.FRONTEND_SERVER) {
-                                error "[ERROR] Prod Server IP not found!"
+        
+                            echo "Prod Server IP: ${env.FRONTEND_SERVER}"
+                            if (!env.FRONTEND_SERVER || env.FRONTEND_SERVER == "None") {
+                                error "[ERROR] Prod Server IP not found or invalid!"
                             }
-
+        
                             env.CREDENTIALS_ID = "prod-frontend-ssh-key"
                             break
-
+        
                         default:
                             error "[ERROR] Invalid environment specified!"
                     }
                 }
             }
         }
+
 
         stage('Build on Dedicated Build Server') {
             agent { label 'build-server' }

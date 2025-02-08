@@ -8,7 +8,7 @@ pipeline {
         DIST_FILE = "dist-${params.ENVIRONMENT}-${new Date().format('ddMMMyyyy')}-new.tar.gz"
         S3_BUCKET = 'pinga-builds'
         SSH_KEY_PATH = '/var/lib/jenkins/vkey.pem'
-        SLACK_CHANNEL = "slack-webhook"
+        SLACK_CHANNEL = "slack-bot-token"
         // sudo npm install @angular-devkit/build-angular@16.0.3 --save-dev --legacy-peer-deps
     }
 
@@ -43,27 +43,40 @@ pipeline {
         stage('Initialize') {
             steps {
                 script {
-                    echo "[INFO] Initializing pipeline with parameters: ENVIRONMENT=${params.ENVIRONMENT}, BUILD_DATE=${env.BUILD_DATE}"
                     switch (params.ENVIRONMENT) {
-                        case 'dev':
-                            env.DIST_FILE = "dist-dev-${env.BUILD_DATE}-new.tar.gz"
-                            env.FRONTEND_SERVER = "ec2-3-109-179-70.ap-south-1.compute.amazonaws.com"
-                            env.CREDENTIALS_ID = "dev-frontend-ssh-key"
-                            break
                         case 'uat':
                             env.DIST_FILE = "dist-uat-${env.BUILD_DATE}-new.tar.gz"
-                            env.FRONTEND_SERVER = "ec2-15-207-221-222.ap-south-1.compute.amazonaws.com"
+                            env.FRONTEND_SERVER = sh(script: """
+                                aws ec2 describe-instances --region ap-south-1 \
+                                --filters "Name=tag:Name,Values=crmuat-ui-nov2023" "Name=instance-state-name,Values=running" \
+                                --query "Reservations[0].Instances[0].PublicIpAddress" --output text
+                            """, returnStdout: true).trim()
+
+                            if (!env.FRONTEND_SERVER) {
+                                error "[ERROR] UAT Server IP not found!"
+                            }
+
                             env.CREDENTIALS_ID = "uat-frontend-ssh-key"
                             break
+
                         case 'prod':
                             env.DIST_FILE = "dist-prod-${env.BUILD_DATE}-new.tar.gz"
-                            env.FRONTEND_SERVER = "prod.pingacrm.com"
+                            env.FRONTEND_SERVER = sh(script: """
+                                aws ec2 describe-instances --region ap-south-1 \
+                                --filters "Name=tag:Name,Values=prod-server" "Name=instance-state-name,Values=running" \
+                                --query "Reservations[0].Instances[0].PublicIpAddress" --output text
+                            """, returnStdout: true).trim()
+
+                            if (!env.FRONTEND_SERVER) {
+                                error "[ERROR] Prod Server IP not found!"
+                            }
+
                             env.CREDENTIALS_ID = "prod-frontend-ssh-key"
                             break
+
                         default:
-                            error "[ERROR] Invalid environment: ${params.ENVIRONMENT}. Use 'dev', 'uat', or 'prod'."
+                            error "[ERROR] Invalid environment specified!"
                     }
-                    echo "[DEBUG] ENVIRONMENT=${params.ENVIRONMENT}, DIST_FILE=${env.DIST_FILE}, FRONTEND_SERVER=${env.FRONTEND_SERVER}, CREDENTIALS_ID=${env.CREDENTIALS_ID}"
                 }
             }
         }
@@ -183,7 +196,7 @@ pipeline {
             steps {
                 sshagent(credentials: [env.CREDENTIALS_ID]) {
                     sh """
-                    ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "echo [INFO] Server is reachable."
+                    ssh -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "echo 'Server is reachable'"
                     """
                 }
             }
@@ -193,7 +206,7 @@ pipeline {
             steps {
                 sshagent(credentials: [env.CREDENTIALS_ID]) {
                     sh """
-                    ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${FRONTEND_SERVER} \
+                    ssh -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} \
                         'echo "[INFO] Stopping Apache..." && \
                         sudo service apache2 stop || { echo "[ERROR] Failed to stop Apache"; exit 1; }'
                     """
@@ -291,31 +304,23 @@ EOF
     }
 
     post {
-    success {
-        echo "Deployment completed successfully."
-        slackSend(
-            channel: 'dr_devops_piyush_prashant_kamal_accounts_hr', // Replace with your Slack channel
-            message: "✅ Deployment SUCCESSFUL: ${env.JOB_NAME} - Build #${env.BUILD_NUMBER}\nEnvironment: ${params.ENVIRONMENT}\nBuild Date: ${env.BUILD_DATE}\nMore info: ${env.BUILD_URL}"
-        )
-    }
-    failure {
-        echo "[ERROR] Pipeline failed. Initiating rollback."
-        slackSend(
-            channel: 'dr_devops_piyush_prashant_kamal_accounts_hr', // Replace with your Slack channel
-            message: "❌ Deployment FAILED: ${env.JOB_NAME} - Build #${env.BUILD_NUMBER}\nEnvironment: ${params.ENVIRONMENT}\nBuild Date: ${env.BUILD_DATE}\nMore info: ${env.BUILD_URL}"
-        )
-        sshagent(credentials: [CREDENTIALS_ID]) {
-            sh '''
-                ssh -i /home/ubuntu/vkey.pem ubuntu@${env.FRONTEND_SERVER} << EOF
-                sudo service apache2 stop || exit 1
-                if [ -d /var/www/html/pinga-backup-${env.BUILD_DATE} ]; then
-                    sudo rm -rf /var/www/html/pinga || exit 1
-                    sudo mv /var/www/html/pinga-backup-${env.BUILD_DATE} /var/www/html/pinga || exit 1
-                fi
-                sudo service apache2 start || exit 1
-                EOF
-            '''
+        success {
+            echo "Deployment completed successfully."
+        }
+        failure {
+            echo "[ERROR] Pipeline failed. Initiating rollback."
+            sshagent(credentials: [CREDENTIALS_ID]) {
+                sh '''
+                    ssh -i ${SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} << EOF
+                    sudo service apache2 stop || exit 1
+                    if [ -d /var/www/html/pinga-backup-${env.BUILD_DATE} ]; then
+                        sudo rm -rf /var/www/html/pinga || exit 1
+                        sudo mv /var/www/html/pinga-backup-${env.BUILD_DATE} /var/www/html/pinga || exit 1
+                    fi
+                    sudo service apache2 start || exit 1
+                    EOF
+                '''
+            }
         }
     }
-}
 }

@@ -290,16 +290,15 @@ EOF
                 }
             }
         }
-    }
 
-    stage('Health Check') {
+        stage('Health Check') {
     steps {
         sh """
         curl -I http://${env.FRONTEND_SERVER}/health || { echo "[ERROR] Health check failed"; exit 1; }
-EOF
         """
     }
 }
+    }
 
     post {
         success {

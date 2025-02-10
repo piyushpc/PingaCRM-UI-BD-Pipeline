@@ -308,14 +308,11 @@ EOF
             echo "[ERROR] Pipeline failed. Initiating rollback."
             sshagent(credentials: [CREDENTIALS_ID]) {
                 sh '''
-                    ssh -i ${env.SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} << EOF
-                    sudo service apache2 stop || exit 1
-                    if [ -d /home/ubuntu/pinga-backup-${env.BUILD_DATE} ]; then
-                        sudo rm -rf /var/www/html/pinga || exit 1
-                        sudo mv /home/ubuntu/pinga-backup-${env.BUILD_DATE} /var/www/html/pinga || exit 1
-                    fi
-                    sudo service apache2 start || exit 1
-                    EOF
+                latest_backup=$(ls -td /var/www/html/pinga-backup-* | head -1)
+                if [ -d "$latest_backup" ]; then
+                    sudo rm -rf /var/www/html/pinga
+                    sudo mv "$latest_backup" /var/www/html/pinga
+                fi
                 '''
             }
         }

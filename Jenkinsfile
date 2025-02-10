@@ -10,6 +10,9 @@ pipeline {
         SSH_KEY_PATH = '/var/lib/jenkins/vkey.pem'
         SLACK_CHANNEL = "slack-bot-token"
         // sudo npm install @angular-devkit/build-angular@16.0.3 --save-dev --legacy-peer-deps
+        //set -x
+          //                      rm -rf dist
+            //                    rm -rf node_modules package-lock.json
     }
 
     parameters {

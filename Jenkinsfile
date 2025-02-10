@@ -20,7 +20,7 @@ pipeline {
             description: 'Select the deployment environment: dev, uat, prod'
         )
     }
-
+    
     stages {
         stage('Debug Environment Variables') {
             steps {

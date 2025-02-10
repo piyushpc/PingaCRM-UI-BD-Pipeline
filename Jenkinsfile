@@ -146,8 +146,8 @@ pipeline {
                                 sudo chmod -R 755 /home/ubuntu/pinga/trunk
 
                                 set -x
-                                rm -rf dist
-                                rm -rf node_modules package-lock.json
+                                sudo rm -rf dist
+                                sudo rm -rf node_modules package-lock.json
                                 
                                 echo "[INFO] Installing dependencies..."
                                 sudo npm install --legacy-peer-deps

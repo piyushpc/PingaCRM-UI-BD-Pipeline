@@ -140,10 +140,7 @@ pipeline {
                             sh '''
                                 sudo chown -R jenkins:jenkins /home/ubuntu/pinga/trunk
                                 sudo chmod -R 755 /home/ubuntu/pinga/trunk
-                                 
-                                set -x
-                                rm -rf dist
-                                rm -rf node_modules package-lock.json
+            
                                 
                                 echo "[INFO] Installing dependencies..."
                                 sudo npm ci --legacy-peer-deps || npm install --legacy-peer-deps

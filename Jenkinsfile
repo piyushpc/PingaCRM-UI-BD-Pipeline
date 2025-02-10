@@ -13,6 +13,7 @@ pipeline {
         //set -x
           //                      rm -rf dist
             //                    rm -rf node_modules package-lock.json
+      //  sudo npm ci --legacy-peer-deps || npm install --legacy-peer-deps
     }
 
     parameters {

@@ -146,7 +146,7 @@ pipeline {
                                 rm -rf node_modules package-lock.json
                                 
                                 echo "[INFO] Installing dependencies..."
-                                sudo npm install --legacy-peer-deps
+                                sudo npm ci --legacy-peer-deps || npm install --legacy-peer-deps
                                 
                                 echo "[INFO] Running npm audit fix..."
                                 npm audit fix || echo "Audit fix failed; ignoring remaining issues."

@@ -292,6 +292,14 @@ EOF
         }
     }
 
+    stage('Health Check') {
+    steps {
+        sh """
+        curl -I http://${env.FRONTEND_SERVER}/health || { echo "[ERROR] Health check failed"; exit 1; }
+        """
+    }
+}
+
     post {
         success {
             echo "Deployment completed successfully."
@@ -302,9 +310,9 @@ EOF
                 sh '''
                     ssh -i ${env.SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} << EOF
                     sudo service apache2 stop || exit 1
-                    if [ -d /var/www/html/pinga-backup-${env.BUILD_DATE} ]; then
+                    if [ -d /home/ubuntu/pinga-backup-${env.BUILD_DATE} ]; then
                         sudo rm -rf /var/www/html/pinga || exit 1
-                        sudo mv /var/www/html/pinga-backup-${env.BUILD_DATE} /var/www/html/pinga || exit 1
+                        sudo mv /home/ubuntu/pinga-backup-${env.BUILD_DATE} /var/www/html/pinga || exit 1
                     fi
                     sudo service apache2 start || exit 1
                     EOF

@@ -148,9 +148,12 @@ pipeline {
                                 set -x
                                 sudo rm -rf dist
                                 sudo rm -rf node_modules package-lock.json
+
+                                export PATH=$(npm bin):$PATH
+                                sudo npm install -g typescript@5.1.6 --force # Install compatible TypeScript version globally
                                 
                                 echo "[INFO] Installing dependencies..."
-                                sudo npm install --legacy-peer-deps
+                                sudo npm install --legacy-peer-deps --force
                                 
                                 echo "[INFO] Running npm audit fix..."
                                 npm audit fix || echo "Audit fix failed; ignoring remaining issues."
@@ -158,7 +161,8 @@ pipeline {
                                 echo "[INFO] Running force audit fix..."
                                 npm audit fix --force || echo "Force audit fix failed."
 
-                                sudo npm install -g typescript@5.1.6 --force # Install compatible TypeScript version globally
+                                npx tsc --version
+
                                 
                                 echo "[INFO] Running build..."
                                 npm run build

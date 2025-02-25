@@ -115,10 +115,10 @@ pipeline {
                                         echo '[INFO] Checking if SVN directory exists...'
                                         if [ -d '${svnDir}' ]; then
                                             echo '[INFO] Directory exists. Updating...'
-                                            svn update '${svnDir}' --non-interactive --trust-server-cert
+                                            svn update '${svnDir}' --username "\$SVN_USER" --password "\$SVN_PASS" --non-interactive --trust-server-cert
                                         else
                                             echo '[INFO] Directory does not exist. Performing fresh checkout...'
-                                            svn checkout --non-interactive --trust-server-cert --username "\$SVN_USER" --password "\$SVN_PASS" '${svnUrl}' '${svnDir}'
+                                            svn checkout --username "\$SVN_USER" --password "\$SVN_PASS" --non-interactive --trust-server-cert '${svnUrl}' '${svnDir}'
                                         fi
                                     """
                                 }

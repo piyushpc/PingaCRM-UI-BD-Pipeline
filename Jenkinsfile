@@ -111,16 +111,16 @@ pipeline {
                                 withCredentials([usernamePassword(credentialsId: 'svn-credentials-id', 
                                                                   usernameVariable: 'SVN_USER', 
                                                                   passwordVariable: 'SVN_PASS')]) {
-                                    sh '''
-                                        echo "[INFO] Checking if SVN directory exists..."
-                                        if [ -d '"'"'${svnDir}'"'"' ]; then
-                                            echo "[INFO] Directory exists. Updating..."
-                                            svn update ${svnDir} --non-interactive --trust-server-cert
+                                    sh """
+                                        echo '[INFO] Checking if SVN directory exists...'
+                                        if [ -d '${svnDir}' ]; then
+                                            echo '[INFO] Directory exists. Updating...'
+                                            svn update '${svnDir}' --non-interactive --trust-server-cert
                                         else
-                                            echo "[INFO] Directory does not exist. Performing fresh checkout..."
-                                            svn checkout --non-interactive --trust-server-cert --username "$SVN_USER" --password "$SVN_PASS" ${svnUrl} ${svnDir}
+                                            echo '[INFO] Directory does not exist. Performing fresh checkout...'
+                                            svn checkout --non-interactive --trust-server-cert --username "\$SVN_USER" --password "\$SVN_PASS" '${svnUrl}' '${svnDir}'
                                         fi
-                                    '''
+                                    """
                                 }
                                 echo "[INFO] SVN operation completed successfully."
                             } else {
@@ -129,6 +129,7 @@ pipeline {
                         }
                     }
                 }
+
 
                 stage('Copy Environment-Specific Configuration File') {
                     steps {

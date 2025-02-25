@@ -103,23 +103,26 @@ pipeline {
                     steps {
                         script {
                             if (params.UPDATE_SVN) {
-                                echo "[INFO] UPDATE_SVN is enabled. Performing fresh SVN checkout..."
-                                 
+                                echo "[INFO] UPDATE_SVN is enabled. Performing SVN checkout/update..."
+                
                                 def svnUrl = "https://extsvn.pingacrm.com/svn/pingacrm-frontend-new/trunk"
                                 def svnDir = "/home/ubuntu/pinga/trunk"
-
+                
                                 withCredentials([usernamePassword(credentialsId: 'svn-credentials-id', 
                                                                   usernameVariable: 'SVN_USER', 
                                                                   passwordVariable: 'SVN_PASS')]) {
-                                    sh """
-                                        echo '[INFO] Removing existing SVN directory...'
-                                        svn update ${svnDir}
-                                        
-                                        echo '[INFO] Checking out repository from SVN...'
-                                        svn checkout --username $SVN_USER --password $SVN_PASS ${svnUrl} ${svnDir}
-                                    """
+                                    sh '''
+                                        echo "[INFO] Checking if SVN directory exists..."
+                                        if [ -d '"'"'${svnDir}'"'"' ]; then
+                                            echo "[INFO] Directory exists. Updating..."
+                                            svn update ${svnDir} --non-interactive --trust-server-cert
+                                        else
+                                            echo "[INFO] Directory does not exist. Performing fresh checkout..."
+                                            svn checkout --non-interactive --trust-server-cert --username "$SVN_USER" --password "$SVN_PASS" ${svnUrl} ${svnDir}
+                                        fi
+                                    '''
                                 }
-                                echo "[INFO] Fresh SVN checkout completed successfully."
+                                echo "[INFO] SVN operation completed successfully."
                             } else {
                                 echo "[INFO] UPDATE_SVN is disabled. Skipping SVN operations."
                             }

@@ -151,13 +151,14 @@ pipeline {
                                 
                                 echo "[INFO] Installing dependencies..."
                                 sudo npm install --legacy-peer-deps
-                                sudo npm install -g typescript@5.1.6 --force # Install compatible TypeScript version globally
                                 
                                 echo "[INFO] Running npm audit fix..."
                                 npm audit fix || echo "Audit fix failed; ignoring remaining issues."
                                 
                                 echo "[INFO] Running force audit fix..."
                                 npm audit fix --force || echo "Force audit fix failed."
+
+                                sudo npm install -g typescript@5.1.6 --force # Install compatible TypeScript version globally
                                 
                                 echo "[INFO] Running build..."
                                 npm run build

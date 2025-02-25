@@ -149,6 +149,11 @@ pipeline {
                                 sudo rm -rf dist
                                 sudo rm -rf node_modules package-lock.json
 
+                                echo "[INFO] Removing existing TypeScript versions..."
+                                sudo npm uninstall -g typescript || true
+                                sudo rm -rf /usr/lib/node_modules/typescript || true
+                                rm -rf node_modules package-lock.json
+
                                 export PATH=$(npm bin):$PATH
                                 sudo npm install -g typescript@5.1.6 --force # Install compatible TypeScript version globally
                                 

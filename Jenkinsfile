@@ -150,8 +150,8 @@ pipeline {
                                 sudo rm -rf node_modules package-lock.json
                                 
                                 echo "[INFO] Installing dependencies..."
-                                sudo npm install -g typescript@5.1.6 --force # Install compatible TypeScript version globally
                                 sudo npm install --legacy-peer-deps
+                                sudo npm install -g typescript@5.1.6 --force # Install compatible TypeScript version globally
                                 
                                 echo "[INFO] Running npm audit fix..."
                                 npm audit fix || echo "Audit fix failed; ignoring remaining issues."

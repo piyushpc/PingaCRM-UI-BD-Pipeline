@@ -63,7 +63,7 @@ pipeline {
                             break
                         case 'prod':
                             env.DIST_FILE = "dist-prod-${env.BUILD_DATE}-new.tar.gz"
-                            env.FRONTEND_SERVER = "prod.pingacrm.com"
+                            env.FRONTEND_SERVER = "ec2-15-207-197-18.ap-south-1.compute.amazonaws.com"
                             env.CREDENTIALS_ID = "prod-frontend-ssh-key"
                             break
                         default:

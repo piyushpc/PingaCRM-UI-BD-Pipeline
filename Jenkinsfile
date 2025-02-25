@@ -3,7 +3,8 @@ pipeline {
 
     environment {
         AWS_DEFAULT_REGION = 'ap-south-1'
-        BUILD_DATE = sh(script: 'date +%d%b%Y', returnStdout: true).trim()
+        //BUILD_DATE = sh(script: 'date +%d%b%Y', returnStdout: true).trim()
+        BUILD_DATE = new Date().format("ddMMMyyyy")
         BUILD_DIR = "/home/ubuntu"
         DIST_FILE = "dist-${params.ENVIRONMENT}-${new Date().format('ddMMMyyyy')}-new.tar.gz"
         S3_BUCKET = 'pinga-builds'
@@ -112,7 +113,7 @@ pipeline {
                                                                   passwordVariable: 'SVN_PASS')]) {
                                     sh """
                                         echo '[INFO] Removing existing SVN directory...'
-                                        sudo rm -rf ${svnDir}
+                                        svn update ${svnDir}
                                         
                                         echo '[INFO] Checking out repository from SVN...'
                                         svn checkout --username $SVN_USER --password $SVN_PASS ${svnUrl} ${svnDir}
@@ -251,10 +252,10 @@ EOF
                     sh """
                     ssh -i ${env.SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} <<EOF
                         echo "[INFO] Ensuring deployment directory exists..."
-                        mkdir -p /tmp/${params.ENVIRONMENT}-dist || { echo "[ERROR] Failed to create /tmp/${params.ENVIRONMENT}-dist"; exit 1; }
+                        mkdir -p /home/ubuntu/${params.ENVIRONMENT}-dist || { echo "[ERROR] Failed to create /home/ubuntu/${params.ENVIRONMENT}-dist"; exit 1; }
 
                         echo "[INFO] Unzipping the new build..."
-                        tar -xvf ${env.DIST_FILE} -C /tmp/${params.ENVIRONMENT}-dist || { echo "[ERROR] Unzipping failed"; exit 1; }
+                        tar -xvf ${env.DIST_FILE} -C /home/ubuntu/${params.ENVIRONMENT}-dist || { echo "[ERROR] Unzipping failed"; exit 1; }
 EOF
                     """
                 }
@@ -270,7 +271,7 @@ EOF
                         sudo rm -rf /var/www/html/pinga || { echo "[ERROR] Failed to remove old deployment"; exit 1; }
 
                         echo "[INFO] Deploying new build..."
-                        sudo mv /tmp/${params.ENVIRONMENT}-dist/dist/* /var/www/html/pinga || { echo "[ERROR] Deployment failed"; exit 1; }
+                        sudo mv /home/ubuntu/${params.ENVIRONMENT}-dist/dist/* /var/www/html/pinga || { echo "[ERROR] Deployment failed"; exit 1; }
 
                         echo "[INFO] Updating permissions..."
                         sudo chown -R www-data:www-data /var/www/html/pinga || { echo "[ERROR] Failed to update permissions"; exit 1; }
@@ -299,7 +300,7 @@ EOF
                     sh """
                     ssh -i ${env.SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} <<EOF
                         echo "[INFO] Cleaning up temporary directories..."
-                        sudo rm -rf /tmp/${params.ENVIRONMENT}-dist || { echo "[ERROR] Failed to clean up temporary directories"; exit 1; }
+                        sudo rm -rf /home/ubuntu/${params.ENVIRONMENT}-dist || { echo "[ERROR] Failed to clean up temporary directories"; exit 1; }
 EOF
                     """
                 }

@@ -205,7 +205,7 @@ pipeline {
             steps {
                 sshagent(credentials: [env.CREDENTIALS_ID]) {
                     sh """
-                    sudo ssh -o StrictHostKeyChecking=no -i ${env.SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "echo 'Server is reachable'"
+                    sudo ssh -i ${env.SSH_KEY_PATH} ubuntu@${env.FRONTEND_SERVER} "echo 'Server is reachable'"
                     """
                 }
             }
